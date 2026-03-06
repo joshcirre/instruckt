@@ -15,6 +15,11 @@ import * as reactAdapter from './adapters/react'
 // Re-export for api.ts consumers
 export type { AnnotationPayload }
 
+/** Normalize URL to pathname for page-scoping (ignore query/hash) */
+function pageKey(): string {
+  return window.location.pathname
+}
+
 export class Instruckt {
   private config: Required<Pick<InstrucktConfig, 'endpoint' | 'theme' | 'position'>> & InstrucktConfig
   private api: InstrucktApi
@@ -50,9 +55,15 @@ export class Instruckt {
     }
 
     this.toolbar = new Toolbar(this.config.position, {
-      onToggleAnnotate: (active) => this.setAnnotating(active),
-      onFreezeAnimations: (frozen) => this.setFrozen(frozen),
+      onToggleAnnotate: (active) => {
+        this.setAnnotating(active)
+      },
+      onFreezeAnimations: (frozen) => {
+        this.setFrozen(frozen)
+      },
       onCopy: () => this.copyAnnotations(),
+      onClearAll: () => this.clearAll(),
+      onMinimize: (min) => this.onMinimize(min),
     })
 
     this.highlight = new ElementHighlight()
@@ -60,15 +71,120 @@ export class Instruckt {
     this.markers = new AnnotationMarkers((annotation) => this.onMarkerClick(annotation))
 
     document.addEventListener('keydown', this.boundKeydown)
+
+    // Survive Livewire wire:navigate — toolbar gets destroyed when page morphs
+    document.addEventListener('livewire:navigated', () => this.reattach())
+
+    this.syncMarkers()
+  }
+
+  private makeToolbarCallbacks() {
+    return {
+      onToggleAnnotate: (active: boolean) => {
+        this.setAnnotating(active)
+      },
+      onFreezeAnimations: (frozen: boolean) => {
+        this.setFrozen(frozen)
+      },
+      onCopy: () => this.copyAnnotations(),
+      onClearAll: () => this.clearAll(),
+      onMinimize: (min: boolean) => this.onMinimize(min),
+    }
+  }
+
+  private reattach(): void {
+    // Turn off active modes on navigation
+    if (this.isAnnotating) this.setAnnotating(false)
+    if (this.isFrozen) this.setFrozen(false)
+
+    const wasMinimized = this.toolbar?.isMinimized() ?? false
+
+    if (!document.querySelector('[data-instruckt="toolbar"]')) {
+      this.toolbar?.destroy()
+      this.toolbar = new Toolbar(this.config.position, this.makeToolbarCallbacks())
+      // Restore minimized state
+      if (wasMinimized) {
+        this.toolbar.minimize()
+      }
+    }
+
+    if (!document.querySelector('[data-instruckt="markers"]')) {
+      this.markers?.destroy()
+      this.markers = new AnnotationMarkers((annotation) => this.onMarkerClick(annotation))
+    }
+
+    if (!document.querySelector('[data-instruckt="highlight"]')) {
+      this.highlight?.destroy()
+      this.highlight = new ElementHighlight()
+    }
+
+    // Hide markers if minimized
+    if (wasMinimized) {
+      this.markers?.setVisible(false)
+    }
+
+    this.syncMarkers()
+  }
+
+  // ── Minimize ────────────────────────────────────────────────────
+
+  private onMinimize(minimized: boolean): void {
+    if (minimized) {
+      // Deactivate everything when minimized
+      if (this.isAnnotating) this.setAnnotating(false)
+      if (this.isFrozen) this.setFrozen(false)
+      this.toolbar?.setAnnotateActive(false)
+      this.toolbar?.setFreezeActive(false)
+      this.markers?.setVisible(false)
+      this.popup?.destroy()
+    } else {
+      // Show markers again when restored
+      this.markers?.setVisible(true)
+    }
+  }
+
+  // ── Page-scoped markers ─────────────────────────────────────────
+
+  private syncMarkers(): void {
+    this.markers?.clear()
+    const current = pageKey()
+    let idx = 0
+    for (const a of this.annotations) {
+      if (a.status === 'resolved' || a.status === 'dismissed') continue
+      if (this.annotationPageKey(a) === current) {
+        idx++
+        this.markers?.upsert(a, idx)
+      }
+    }
+    this.toolbar?.setAnnotationCount(this.pageAnnotations().length)
+    this.toolbar?.setTotalCount(this.totalActiveCount())
+  }
+
+  private annotationPageKey(a: Annotation): string {
+    try {
+      return new URL(a.url).pathname
+    } catch {
+      return a.url
+    }
+  }
+
+  private pageAnnotations(): Annotation[] {
+    const current = pageKey()
+    return this.annotations.filter(a =>
+      this.annotationPageKey(a) === current &&
+      a.status !== 'resolved' && a.status !== 'dismissed'
+    )
+  }
+
+  private totalActiveCount(): number {
+    return this.annotations.filter(a => a.status !== 'resolved' && a.status !== 'dismissed').length
   }
 
   // ── Annotate mode ─────────────────────────────────────────────
 
   private setAnnotating(active: boolean): void {
-    if (active && this.isFrozen) {
-      this.setFrozen(false)
-    }
     this.isAnnotating = active
+    this.toolbar?.setAnnotateActive(active)
     if (active) {
       this.attachAnnotateListeners()
     } else {
@@ -78,24 +194,48 @@ export class Instruckt {
     }
   }
 
+  // ── Freeze mode ──────────────────────────────────────────────
+
   private setFrozen(frozen: boolean): void {
-    if (frozen && this.isAnnotating) {
-      this.setAnnotating(false)
-      this.toolbar?.setMode('idle')
-    }
     this.isFrozen = frozen
+    this.toolbar?.setFreezeActive(frozen)
     if (frozen) {
       this.frozenStyleEl = document.createElement('style')
       this.frozenStyleEl.id = 'instruckt-freeze'
       this.frozenStyleEl.textContent = `
-        *, *::before, *::after { animation-play-state: paused !important; transition: none !important; }
+        *, *::before, *::after {
+          animation-play-state: paused !important;
+          transition: none !important;
+        }
         video { filter: none !important; }
+        a[href], [wire\\:click], [wire\\:navigate], [x-on\\:click], button, input[type="submit"] {
+          pointer-events: none !important;
+        }
       `
       document.head.appendChild(this.frozenStyleEl)
+      document.addEventListener('click', this.boundFreezeClick, true)
+      document.addEventListener('submit', this.boundFreezeSubmit, true)
     } else {
       this.frozenStyleEl?.remove()
       this.frozenStyleEl = null
+      document.removeEventListener('click', this.boundFreezeClick, true)
+      document.removeEventListener('submit', this.boundFreezeSubmit, true)
     }
+  }
+
+  /** Block all clicks on the page when frozen (except instruckt UI) */
+  private boundFreezeClick = (e: Event): void => {
+    const target = e.target as Element
+    if (this.isInstruckt(target)) return
+    e.preventDefault()
+    e.stopPropagation()
+    e.stopImmediatePropagation()
+  }
+
+  private boundFreezeSubmit = (e: Event): void => {
+    e.preventDefault()
+    e.stopPropagation()
+    e.stopImmediatePropagation()
   }
 
   // ── Event listeners ───────────────────────────────────────────
@@ -123,6 +263,7 @@ export class Instruckt {
     if (this.isInstruckt(target)) return
     e.preventDefault()
     e.stopPropagation()
+    e.stopImmediatePropagation()
 
     const selectedText = window.getSelection()?.toString().trim() || undefined
     const elementPath = getElementSelector(target)
@@ -212,34 +353,32 @@ export class Instruckt {
     try {
       const annotation = await this.api.addAnnotation(payload)
       this.annotations.push(annotation)
-      this.markers?.upsert(annotation, this.annotations.length)
-      this.toolbar?.setAnnotationCount(this.pendingCount())
+      this.syncMarkers()
       this.config.onAnnotationAdd?.(annotation)
-      // Auto-copy all annotations to clipboard after each add
       this.copyAnnotations()
     } catch (err) {
       console.error('[instruckt] Failed to save annotation:', err)
     }
   }
 
-  // ── Marker click — show thread ────────────────────────────────
+  // ── Marker click — edit or delete ─────────────────────────────
 
   private onMarkerClick(annotation: Annotation): void {
-    this.popup?.showThread(annotation, {
-      onResolve: async (a) => {
+    this.popup?.showEdit(annotation, {
+      onSave: async (a, newComment) => {
         try {
-          const updated = await this.api.updateAnnotation(a.id, { status: 'resolved' })
+          const updated = await this.api.updateAnnotation(a.id, { comment: newComment })
           this.onAnnotationUpdated(updated)
         } catch (err) {
-          console.error('[instruckt] Failed to resolve annotation:', err)
+          console.error('[instruckt] Failed to update annotation:', err)
         }
       },
-      onReply: async (a, content) => {
+      onDelete: async (a) => {
         try {
-          const updated = await this.api.addReply(a.id, content, 'human')
-          this.onAnnotationUpdated(updated)
+          await this.api.updateAnnotation(a.id, { status: 'dismissed' })
+          this.removeAnnotation(a.id)
         } catch (err) {
-          console.error('[instruckt] Failed to add reply:', err)
+          console.error('[instruckt] Failed to delete annotation:', err)
         }
       },
     })
@@ -249,43 +388,46 @@ export class Instruckt {
     const idx = this.annotations.findIndex(a => a.id === updated.id)
     if (idx >= 0) {
       this.annotations[idx] = updated
-      this.markers?.update(updated)
-    } else {
-      this.annotations.push(updated)
-      this.markers?.upsert(updated, this.annotations.length)
     }
-    this.toolbar?.setAnnotationCount(this.pendingCount())
+    this.syncMarkers()
+  }
+
+  private removeAnnotation(id: string): void {
+    this.annotations = this.annotations.filter(a => a.id !== id)
+    this.syncMarkers()
+  }
+
+  // ── Clear all ──────────────────────────────────────────────────
+
+  private async clearAll(): Promise<void> {
+    const page = this.pageAnnotations()
+    for (const a of page) {
+      try {
+        await this.api.updateAnnotation(a.id, { status: 'dismissed' })
+      } catch { /* best effort */ }
+    }
+    this.annotations = this.annotations.filter(a => !page.includes(a))
+    this.syncMarkers()
   }
 
   // ── Keyboard ──────────────────────────────────────────────────
 
   private onKeydown(e: KeyboardEvent): void {
+    if (this.toolbar?.isMinimized()) return
     const target = e.target as HTMLElement
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
     if (target.closest('[contenteditable="true"]')) return
 
     if (e.key === 'a' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-      const next = !this.isAnnotating
-      this.toolbar?.setMode(next ? 'annotating' : 'idle')
-      this.setAnnotating(next)
+      this.setAnnotating(!this.isAnnotating)
     }
     if (e.key === 'f' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-      const next = !this.isFrozen
-      this.toolbar?.setMode(next ? 'frozen' : 'idle')
-      this.setFrozen(next)
+      this.setFrozen(!this.isFrozen)
     }
     if (e.key === 'Escape') {
-      if (this.isAnnotating) {
-        this.toolbar?.setMode('idle')
-        this.setAnnotating(false)
-      }
+      if (this.isAnnotating) this.setAnnotating(false)
+      if (this.isFrozen) this.setFrozen(false)
     }
-  }
-
-  // ── Helpers ───────────────────────────────────────────────────
-
-  private pendingCount(): number {
-    return this.annotations.filter(a => a.status === 'pending' || a.status === 'acknowledged').length
   }
 
   // ── Copy / export ─────────────────────────────────────────────
@@ -304,40 +446,61 @@ export class Instruckt {
   }
 
   exportMarkdown(): string {
-    const pending = this.annotations.filter(a => a.status === 'pending' || a.status === 'acknowledged')
+    const pending = this.annotations.filter(a => a.status !== 'resolved' && a.status !== 'dismissed')
     if (pending.length === 0) {
-      return `## Instruckt Feedback — ${window.location.href}\n\nNo open annotations.`
+      return `# UI Feedback\n\nNo open annotations.`
     }
 
-    const lines: string[] = [
-      `## Instruckt Feedback — ${window.location.href}`,
-      `> ${pending.length} open annotation${pending.length === 1 ? '' : 's'}`,
-      '',
-    ]
+    // Group by page
+    const byPage = new Map<string, Annotation[]>()
+    for (const a of pending) {
+      const key = this.annotationPageKey(a)
+      if (!byPage.has(key)) byPage.set(key, [])
+      byPage.get(key)!.push(a)
+    }
 
-    pending.forEach((a, i) => {
-      lines.push(`### ${i + 1}. ${a.element}`)
+    const multiPage = byPage.size > 1
+    const lines: string[] = []
+
+    if (multiPage) {
+      lines.push(`# UI Feedback`)
       lines.push('')
-      lines.push(a.comment)
-      lines.push('')
-      lines.push(`**Selector**: \`${a.elementPath}\``)
-      if (a.framework) {
-        lines.push(`**Component**: ${a.framework.component}`)
+    }
+
+    for (const [path, annotations] of byPage) {
+      if (multiPage) {
+        lines.push(`## ${path}`)
+      } else {
+        lines.push(`# UI Feedback: ${path}`)
       }
-      if (a.selectedText) lines.push(`**Selected text**: "${a.selectedText}"`)
-      if (a.thread && a.thread.length > 0) {
+      lines.push('')
+
+      const hPrefix = multiPage ? '###' : '##'
+
+      annotations.forEach((a, i) => {
+        // Feedback-first heading with element context
+        const componentSuffix = a.framework?.component ? ` in \`${a.framework.component}\`` : ''
+        lines.push(`${hPrefix} ${i + 1}. ${a.comment}`)
+        lines.push(`- Element: \`${a.element}\`${componentSuffix}`)
+
+        // File path if available (e.g. Svelte)
+        if (a.framework?.data?.file) {
+          lines.push(`- File: \`${a.framework.data.file}\``)
+        }
+
+        if (a.cssClasses) {
+          lines.push(`- Classes: \`${a.cssClasses}\``)
+        }
+        if (a.selectedText) {
+          lines.push(`- Text: "${a.selectedText}"`)
+        } else if (a.nearbyText) {
+          lines.push(`- Text: "${a.nearbyText.slice(0, 100)}"`)
+        }
         lines.push('')
-        lines.push('**Thread:**')
-        a.thread.forEach(m => {
-          lines.push(`- **${m.role === 'agent' ? 'Agent' : 'You'}**: ${m.content}`)
-        })
-      }
-      lines.push('')
-      lines.push('---')
-      lines.push('')
-    })
+      })
+    }
 
-    return lines.join('\n')
+    return lines.join('\n').trim()
   }
 
   // ── Public API ────────────────────────────────────────────────

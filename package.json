@@ -1,6 +1,6 @@
 {
   "name": "instruckt",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "description": "Visual feedback tool for AI coding agents — framework-agnostic, Livewire-first",
   "license": "MIT",
   "author": "instruckt",
@@ -24,9 +24,12 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit"
+    "lint": "oxlint src/",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run typecheck && npm run build"
   },
   "devDependencies": {
+    "oxlint": "^1.51.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   }

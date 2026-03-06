@@ -6,6 +6,8 @@ interface ToolbarCallbacks {
   onToggleAnnotate: (active: boolean) => void
   onFreezeAnimations: (frozen: boolean) => void
   onCopy: () => void
+  onClearAll?: () => void
+  onMinimize?: (minimized: boolean) => void
 }
 
 // ── Inline SVG icons (24x24, 2px stroke) ─────────────────────
@@ -15,15 +17,24 @@ const ICONS = {
   freeze: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`,
   copy: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
   check: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+  clear: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+  minimize: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 13 12 18 17 13"/><line x1="12" y1="6" x2="12" y2="18"/></svg>`,
+  logo: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>`,
 } as const
 
 export class Toolbar {
   private host!: HTMLElement
   private shadow!: ShadowRoot
+  private toolbarEl!: HTMLDivElement
+  private fab!: HTMLButtonElement
+  private fabBadge: HTMLSpanElement | null = null
   private annotateBtn!: HTMLButtonElement
   private freezeBtn!: HTMLButtonElement
   private copyBtn!: HTMLButtonElement
-  private mode: ToolbarMode = 'idle'
+  private annotateActive = false
+  private freezeActive = false
+  private minimized = false
+  private totalCount = 0
   private dragging = false
   private dragOffset = { x: 0, y: 0 }
 
@@ -44,18 +55,19 @@ export class Toolbar {
     style.textContent = TOOLBAR_CSS
     this.shadow.appendChild(style)
 
-    const toolbar = document.createElement('div')
-    toolbar.className = 'toolbar'
+    // Full toolbar
+    this.toolbarEl = document.createElement('div')
+    this.toolbarEl.className = 'toolbar'
 
     this.annotateBtn = this.makeBtn(ICONS.annotate, 'Annotate elements (A)', () => {
-      const next = this.mode !== 'annotating'
-      this.setMode(next ? 'annotating' : 'idle')
+      const next = !this.annotateActive
+      this.setAnnotateActive(next)
       this.callbacks.onToggleAnnotate(next)
     })
 
-    this.freezeBtn = this.makeBtn(ICONS.freeze, 'Freeze animations (F)', () => {
-      const next = this.mode !== 'frozen'
-      this.setMode(next ? 'frozen' : 'idle')
+    this.freezeBtn = this.makeBtn(ICONS.freeze, 'Freeze page (F)', () => {
+      const next = !this.freezeActive
+      this.setFreezeActive(next)
       this.callbacks.onFreezeAnimations(next)
     })
 
@@ -65,16 +77,40 @@ export class Toolbar {
       setTimeout(() => { this.copyBtn.innerHTML = ICONS.copy }, 1200)
     })
 
-    const divider = document.createElement('div')
-    divider.className = 'divider'
-    const divider2 = document.createElement('div')
-    divider2.className = 'divider'
+    const clearBtn = this.makeBtn(ICONS.clear, 'Clear all annotations on this page', () => {
+      this.callbacks.onClearAll?.()
+    })
+    clearBtn.classList.add('danger-btn')
 
-    toolbar.append(this.annotateBtn, divider, this.freezeBtn, divider2, this.copyBtn)
-    this.shadow.appendChild(toolbar)
+    const minimizeBtn = this.makeBtn(ICONS.minimize, 'Minimize toolbar', () => {
+      this.setMinimized(true)
+    })
+    minimizeBtn.classList.add('minimize-btn')
+
+    const mkDiv = () => { const d = document.createElement('div'); d.className = 'divider'; return d }
+
+    this.toolbarEl.append(
+      this.annotateBtn, mkDiv(), this.freezeBtn, mkDiv(),
+      this.copyBtn, clearBtn, mkDiv(), minimizeBtn,
+    )
+    this.shadow.appendChild(this.toolbarEl)
+
+    // Floating action button (minimized state)
+    this.fab = document.createElement('button')
+    this.fab.className = 'fab'
+    this.fab.title = 'Open instruckt toolbar'
+    this.fab.setAttribute('aria-label', 'Open instruckt toolbar')
+    this.fab.innerHTML = ICONS.logo
+    this.fab.style.display = 'none'
+    this.fab.addEventListener('click', (e) => {
+      e.stopPropagation()
+      this.setMinimized(false)
+    })
+    this.shadow.appendChild(this.fab)
 
     this.applyPosition()
-    document.body.appendChild(this.host)
+    const root = document.getElementById('instruckt-root') ?? document.body
+    root.appendChild(this.host)
   }
 
   private makeBtn(iconHtml: string, title: string, onClick: () => void): HTMLButtonElement {
@@ -103,8 +139,9 @@ export class Toolbar {
   }
 
   private setupDrag(): void {
-    this.shadow.addEventListener('mousedown', (e) => {
-      if ((e.target as Element).closest('.btn')) return
+    this.shadow.addEventListener('mousedown', (evt) => {
+      const e = evt as MouseEvent
+      if ((e.target as Element).closest('.btn') || (e.target as Element).closest('.fab')) return
       this.dragging = true
       const rect = this.host.getBoundingClientRect()
       this.dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top }
@@ -124,11 +161,54 @@ export class Toolbar {
     document.addEventListener('mouseup', () => { this.dragging = false })
   }
 
+  private setMinimized(min: boolean): void {
+    this.minimized = min
+    this.toolbarEl.style.display = min ? 'none' : ''
+    this.fab.style.display = min ? '' : 'none'
+    this.updateFabBadge()
+    this.callbacks.onMinimize?.(min)
+  }
+
+  private updateFabBadge(): void {
+    if (this.totalCount > 0 && this.minimized) {
+      if (!this.fabBadge) {
+        this.fabBadge = document.createElement('span')
+        this.fabBadge.className = 'fab-badge'
+        this.fab.appendChild(this.fabBadge)
+      }
+      this.fabBadge.textContent = this.totalCount > 99 ? '99+' : String(this.totalCount)
+    } else {
+      this.fabBadge?.remove()
+      this.fabBadge = null
+    }
+  }
+
+  isMinimized(): boolean {
+    return this.minimized
+  }
+
+  /** Programmatically minimize without firing callback */
+  minimize(): void {
+    this.minimized = true
+    this.toolbarEl.style.display = 'none'
+    this.fab.style.display = ''
+    this.updateFabBadge()
+  }
+
+  setAnnotateActive(active: boolean): void {
+    this.annotateActive = active
+    this.annotateBtn.classList.toggle('active', active)
+    document.body.classList.toggle('ik-annotating', active)
+  }
+
+  setFreezeActive(active: boolean): void {
+    this.freezeActive = active
+    this.freezeBtn.classList.toggle('active', active)
+  }
+
+  // Keep for compatibility — resolves visual mode from instruckt.ts
   setMode(mode: ToolbarMode): void {
-    this.mode = mode
-    this.annotateBtn.classList.toggle('active', mode === 'annotating')
-    this.freezeBtn.classList.toggle('active', mode === 'frozen')
-    document.body.classList.toggle('ik-annotating', mode === 'annotating')
+    this.setAnnotateActive(mode === 'annotating')
   }
 
   setAnnotationCount(count: number): void {
@@ -143,6 +223,11 @@ export class Toolbar {
     } else {
       badge?.remove()
     }
+  }
+
+  setTotalCount(count: number): void {
+    this.totalCount = count
+    this.updateFabBadge()
   }
 
   destroy(): void {

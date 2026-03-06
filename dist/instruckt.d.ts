@@ -74,8 +74,18 @@ declare class Instruckt {
     private boundKeydown;
     constructor(config: InstrucktConfig);
     private init;
+    private makeToolbarCallbacks;
+    private reattach;
+    private onMinimize;
+    private syncMarkers;
+    private annotationPageKey;
+    private pageAnnotations;
+    private totalActiveCount;
     private setAnnotating;
     private setFrozen;
+    /** Block all clicks on the page when frozen (except instruckt UI) */
+    private boundFreezeClick;
+    private boundFreezeSubmit;
     private boundMouseMove;
     private boundMouseLeave;
     private boundClick;
@@ -86,8 +96,9 @@ declare class Instruckt {
     private submitAnnotation;
     private onMarkerClick;
     private onAnnotationUpdated;
+    private removeAnnotation;
+    private clearAll;
     private onKeydown;
-    private pendingCount;
     private copyAnnotations;
     exportMarkdown(): string;
     getAnnotations(): Annotation[];

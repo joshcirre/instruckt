@@ -16,7 +16,8 @@ export class ElementHighlight {
       display: 'none',
     })
     this.el.setAttribute('data-instruckt', 'highlight')
-    document.body.appendChild(this.el)
+    const root = document.getElementById('instruckt-root') ?? document.body
+    root.appendChild(this.el)
   }
 
   show(el: Element): void {

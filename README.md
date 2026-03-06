@@ -1,6 +1,6 @@
 # instruckt
 
-Visual feedback tool for AI coding agents. Click on any element in your app, leave an annotation, and your AI agent picks it up via MCP — no screenshots, no copy-pasting.
+Visual feedback tool for AI coding agents. Click on any element in your app, leave a note, and copy structured markdown to paste into your AI agent — no screenshots needed.
 
 Framework-agnostic JS core with adapters for Livewire, Vue, Svelte, and React.
 
@@ -13,7 +13,7 @@ npm install instruckt
 Or load via CDN:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/instruckt@0.1.0/dist/instruckt.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instruckt/dist/instruckt.iife.js"></script>
 ```
 
 ## Quick Start
@@ -40,9 +40,25 @@ Or with the IIFE build:
 1. A floating toolbar appears in your app
 2. Press **A** or click the annotate button to enter annotation mode
 3. Hover over any element — instruckt highlights it and detects its framework component
-4. Click to annotate — choose an intent (fix, change, question, approve) and severity
-5. Your AI agent reads annotations via MCP tools and can reply, acknowledge, or resolve them
-6. Real-time sync via SSE keeps both sides in sync
+4. Click to annotate — type your feedback and save
+5. Annotations auto-copy as structured markdown to your clipboard
+6. Paste into any AI coding agent (Claude Code, Cursor, Codex, Copilot, OpenCode, etc.)
+7. The agent reads the markdown and makes the requested code changes
+
+### Example Output
+
+```markdown
+# UI Feedback: /auth/login
+
+## 1. Change the submit button color to green
+- Element: `button.btn-primary` in `pages::auth.login`
+- Classes: `btn btn-primary`
+- Text: "Submit Login"
+
+## 2. Make the login card have rounded corners
+- Element: `div.bg-white` in `pages::auth.login`
+- Classes: `bg-white dark:bg-white/10 border`
+```
 
 ## Configuration
 
@@ -62,8 +78,6 @@ new Instruckt({
 
   // Callbacks
   onAnnotationAdd: (annotation) => {},
-  onAnnotationResolve: (annotation) => {},
-  onSessionCreate: (session) => {},
 })
 ```
 
@@ -72,26 +86,24 @@ new Instruckt({
 | Key | Action |
 |-----|--------|
 | `A` | Toggle annotation mode |
-| `F` | Freeze animations |
-| `Esc` | Exit annotation mode |
+| `F` | Freeze page (pause animations, block navigation) |
+| `Esc` | Exit annotation/freeze mode |
 
 ## Features
 
-- **Framework detection** — automatically identifies Livewire, Vue, Svelte, and React components, including component names and state
+- **Framework detection** — automatically identifies Livewire, Vue, Svelte, and React components
 - **Shadow DOM isolation** — all UI renders in shadow roots so it never conflicts with your styles
-- **Annotation threads** — back-and-forth conversation between you and your AI agent on each annotation
-- **Copy as markdown** — export all open annotations to clipboard for pasting into any context
-- **MutationObserver** — markers reposition automatically when the DOM changes (Livewire re-renders, SPA navigation)
-- **SSE real-time sync** — agent replies and status changes appear instantly
+- **Copy as markdown** — annotations auto-copy as structured markdown optimized for AI agents
+- **Freeze mode** — pause animations and block all navigation/interactions for stable annotation
+- **Minimize** — collapse to a small floating button with annotation count badge
+- **Page-scoped markers** — annotation pins only appear on the page where they were created
+- **Livewire navigation** — survives `wire:navigate` page transitions
 
 ## Public API
 
 ```js
 // Get all annotations
 instruckt.getAnnotations()
-
-// Get current session
-instruckt.getSession()
 
 // Export open annotations as markdown
 instruckt.exportMarkdown()
@@ -102,9 +114,9 @@ instruckt.destroy()
 
 ## Backend
 
-instruckt needs a backend to persist annotations and expose MCP tools. The official Laravel package provides this out of the box:
+instruckt needs a backend to persist annotations. The official Laravel package provides this out of the box:
 
-- **[instruckt-laravel](https://github.com/joshcirre/instruckt-laravel)** — Laravel package with MCP server, migrations, Blade component, and API routes
+- **[instruckt-laravel](https://github.com/joshcirre/instruckt-laravel)** — Laravel package with JSON file storage, MCP tools, Blade component, and API routes
 
 ## License
 

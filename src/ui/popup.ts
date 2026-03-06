@@ -10,9 +10,9 @@ interface PopupCallbacks {
   onCancel: () => void
 }
 
-interface ThreadCallbacks {
-  onResolve: (annotation: Annotation) => void
-  onReply: (annotation: Annotation, content: string) => void
+interface EditCallbacks {
+  onSave: (annotation: Annotation, newComment: string) => void
+  onDelete: (annotation: Annotation) => void
 }
 
 function esc(s: string): string {
@@ -87,16 +87,16 @@ export class AnnotationPopup {
     })
 
     this.shadow.appendChild(popup)
-    document.body.appendChild(this.host)
+    ;(document.getElementById('instruckt-root') ?? document.body).appendChild(this.host)
 
     this.positionHost(pending.x, pending.y)
     this.setupOutsideClick()
     textarea.focus()
   }
 
-  // ── Thread / existing annotation popup ───────────────────────
+  // ── Edit existing annotation ──────────────────────────────────
 
-  showThread(annotation: Annotation, callbacks: ThreadCallbacks): void {
+  showEdit(annotation: Annotation, callbacks: EditCallbacks): void {
     this.destroy()
     this.host = document.createElement('div')
     this.host.setAttribute('data-instruckt', 'popup')
@@ -109,68 +109,65 @@ export class AnnotationPopup {
     const popup = document.createElement('div')
     popup.className = 'popup'
 
-    const statusLabel = (s: string) => `<span class="status-badge ${esc(s)}">${esc(s)}</span>`
-    const thread = (annotation.thread ?? []).map(m => `
-      <div class="msg">
-        <div class="msg-role ${esc(m.role)}">${m.role === 'agent' ? '🤖 Agent' : '👤 You'}</div>
-        <div class="msg-content">${esc(m.content)}</div>
-      </div>
-    `).join('')
-
-    const isPending = ['pending', 'acknowledged'].includes(annotation.status)
+    const fwBadge = annotation.framework
+      ? `<div class="fw-badge">${esc(annotation.framework.component)}</div>`
+      : ''
 
     popup.innerHTML = `
       <div class="header">
-        <span class="element-tag">${esc(annotation.element)}</span>
+        <span class="element-tag" title="${esc(annotation.elementPath)}">${esc(annotation.element)}</span>
         <button class="close-btn">✕</button>
       </div>
-      ${statusLabel(annotation.status)}
-      <div class="selected-text" style="margin-top:8px;">${esc(annotation.comment)}</div>
-      ${thread ? `<div class="thread">${thread}</div>` : ''}
-      ${isPending ? `
-        <div class="thread" style="margin-top:8px;">
-          <textarea placeholder="Add a reply…" rows="2"></textarea>
-          <div class="actions" style="margin-top:6px;">
-            <button class="btn-secondary" data-action="resolve">Mark resolved</button>
-            <button class="btn-primary" data-action="reply" disabled>Reply</button>
-          </div>
-        </div>
-      ` : ''}
+      ${fwBadge}
+      <textarea rows="3">${esc(annotation.comment)}</textarea>
+      <div class="actions">
+        <button class="btn-danger" data-action="delete">Remove</button>
+        <button class="btn-primary" data-action="save">Save</button>
+      </div>
     `
 
     popup.querySelector('.close-btn')!.addEventListener('click', () => this.destroy())
 
-    if (isPending) {
-      const textarea = popup.querySelector('textarea')!
-      const replyBtn = popup.querySelector<HTMLButtonElement>('[data-action="reply"]')!
-      textarea.addEventListener('input', () => {
-        replyBtn.disabled = textarea.value.trim().length === 0
-      })
-      replyBtn.addEventListener('click', () => {
-        const content = textarea.value.trim()
-        if (!content) return
-        callbacks.onReply(annotation, content)
-        this.destroy()
-      })
-      popup.querySelector('[data-action="resolve"]')!.addEventListener('click', () => {
-        callbacks.onResolve(annotation)
-        this.destroy()
-      })
-    }
+    const textarea = popup.querySelector('textarea')!
+    const saveBtn = popup.querySelector<HTMLButtonElement>('[data-action="save"]')!
+    const deleteBtn = popup.querySelector<HTMLButtonElement>('[data-action="delete"]')!
+
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        saveBtn.click()
+      }
+      if (e.key === 'Escape') this.destroy()
+    })
+
+    saveBtn.addEventListener('click', () => {
+      const newComment = textarea.value.trim()
+      if (!newComment) return
+      callbacks.onSave(annotation, newComment)
+      this.destroy()
+    })
+
+    deleteBtn.addEventListener('click', () => {
+      callbacks.onDelete(annotation)
+      this.destroy()
+    })
 
     this.shadow.appendChild(popup)
-    document.body.appendChild(this.host)
+    ;(document.getElementById('instruckt-root') ?? document.body).appendChild(this.host)
 
-    // Position near center of screen for thread view
-    this.positionHost(window.innerWidth / 2 - 170, window.innerHeight / 2 - 150)
+    // Position near the marker
+    const markerX = (annotation.x / 100) * window.innerWidth
+    const markerY = annotation.y - window.scrollY
+    this.positionHost(markerX, markerY)
     this.setupOutsideClick()
+    textarea.focus()
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length)
   }
 
   // ── Helpers ───────────────────────────────────────────────────
 
   private positionHost(x: number, y: number): void {
     if (!this.host) return
-    // Temporarily visible to measure
     Object.assign(this.host.style, { position: 'fixed', zIndex: '2147483647', left: '-9999px', top: '0' })
 
     requestAnimationFrame(() => {
@@ -192,7 +189,6 @@ export class AnnotationPopup {
   }
 
   private setupOutsideClick(): void {
-    // Use setTimeout so this click event doesn't immediately fire for the triggering click
     setTimeout(() => document.addEventListener('mousedown', this.boundOutside), 0)
   }
 

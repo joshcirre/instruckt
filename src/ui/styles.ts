@@ -86,6 +86,45 @@ export const TOOLBAR_CSS = /* css */ `
   line-height: 1;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
+
+.minimize-btn { color: var(--ik-muted); opacity: .6; }
+.minimize-btn:hover { opacity: 1; }
+
+.danger-btn { color: var(--ik-muted); opacity: .6; }
+.danger-btn:hover { opacity: 1; color: #ef4444; }
+
+.fab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--ik-bg);
+  color: var(--ik-muted);
+  box-shadow: var(--ik-shadow);
+  cursor: pointer;
+  padding: 0;
+  transition: color .15s ease, transform .15s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.fab:hover { color: var(--ik-accent); transform: scale(1.1); }
+.fab { position: relative; }
+
+.fab-badge {
+  position: absolute;
+  top: -4px; right: -4px;
+  min-width: 16px; height: 16px;
+  background: #6366f1;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 9px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 3px;
+  line-height: 1;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
 `
 
 /** Popup shadow DOM styles — fully isolated */
@@ -205,6 +244,13 @@ textarea::placeholder { color:var(--ik-muted); }
 }
 .btn-primary:hover { background:var(--ik-accent-h); }
 .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+
+.btn-danger {
+  padding:6px 14px; border-radius:6px; border:1px solid #ef4444;
+  background:transparent; color:#ef4444;
+  font-size:12px; cursor:pointer; transition:all .1s;
+}
+.btn-danger:hover { background:#ef4444; color:#fff; }
 
 /* Thread view */
 .thread { margin-top:10px; border-top:1px solid var(--ik-border); padding-top:10px; }

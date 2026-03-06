@@ -22,7 +22,8 @@ export class AnnotationMarkers {
       zIndex: '2147483645',
     })
     this.container.setAttribute('data-instruckt', 'markers')
-    document.body.appendChild(this.container)
+    const root = document.getElementById('instruckt-root') ?? document.body
+    root.appendChild(this.container)
   }
 
   /** Add or update a marker for an annotation */
@@ -88,6 +89,19 @@ export class AnnotationMarkers {
     if (!marker) return
     marker.el.remove()
     this.markers.delete(annotationId)
+  }
+
+  /** Show or hide all markers */
+  setVisible(visible: boolean): void {
+    this.container.style.display = visible ? '' : 'none'
+  }
+
+  /** Remove all markers without destroying the container */
+  clear(): void {
+    for (const { el } of this.markers.values()) {
+      el.remove()
+    }
+    this.markers.clear()
   }
 
   destroy(): void {
