@@ -558,16 +558,10 @@ var ElementHighlight = class {
 function esc(s) {
   return String(s != null ? s : "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-function fwIcon(fw) {
-  var _a;
-  return (_a = { livewire: "\u26A1", vue: "\u{1F49A}", svelte: "\u{1F9E1}" }[fw]) != null ? _a : "\u{1F527}";
-}
 var AnnotationPopup = class {
   constructor() {
     this.host = null;
     this.shadow = null;
-    this.intent = "fix";
-    this.severity = "important";
     this.boundOutside = (e) => {
       if (this.host && !this.host.contains(e.target)) {
         this.destroy();
@@ -585,7 +579,7 @@ var AnnotationPopup = class {
     this.shadow.appendChild(style);
     const popup = document.createElement("div");
     popup.className = "popup";
-    const fwBadge = pending.framework ? `<div class="fw-badge">${fwIcon(pending.framework.framework)} ${esc(pending.framework.component)}</div>` : "";
+    const fwBadge = pending.framework ? `<div class="fw-badge">${esc(pending.framework.component)}</div>` : "";
     const selText = pending.selectedText ? `<div class="selected-text">"${esc(pending.selectedText.slice(0, 80))}"</div>` : "";
     popup.innerHTML = `
       <div class="header">
@@ -593,35 +587,12 @@ var AnnotationPopup = class {
         <button class="close-btn" title="Cancel (Esc)">\u2715</button>
       </div>
       ${fwBadge}${selText}
-      <div class="label">Intent</div>
-      <div class="row">
-        <div class="chips" data-group="intent">
-          <button class="chip sel" data-value="fix">Fix</button>
-          <button class="chip" data-value="change">Change</button>
-          <button class="chip" data-value="question">Question</button>
-          <button class="chip" data-value="approve">Approve</button>
-        </div>
-      </div>
-      <div class="label">Severity</div>
-      <div class="row">
-        <div class="chips" data-group="severity">
-          <button class="chip blocking" data-value="blocking">Blocking</button>
-          <button class="chip important sel" data-value="important">Important</button>
-          <button class="chip suggestion" data-value="suggestion">Suggestion</button>
-        </div>
-      </div>
-      <textarea placeholder="Describe what you'd like changed\u2026" rows="3"></textarea>
+      <textarea placeholder="What needs to change here?" rows="3"></textarea>
       <div class="actions">
         <button class="btn-secondary" data-action="cancel">Cancel</button>
         <button class="btn-primary" data-action="submit" disabled>Add note</button>
       </div>
     `;
-    this.wireChips(popup, "intent", (v) => {
-      this.intent = v;
-    });
-    this.wireChips(popup, "severity", (v) => {
-      this.severity = v;
-    });
     const textarea = popup.querySelector("textarea");
     const submitBtn = popup.querySelector('[data-action="submit"]');
     textarea.addEventListener("input", () => {
@@ -648,7 +619,7 @@ var AnnotationPopup = class {
     submitBtn.addEventListener("click", () => {
       const comment = textarea.value.trim();
       if (!comment) return;
-      callbacks.onSubmit({ comment, intent: this.intent, severity: this.severity });
+      callbacks.onSubmit({ comment });
       this.destroy();
     });
     this.shadow.appendChild(popup);
@@ -719,15 +690,6 @@ var AnnotationPopup = class {
     this.setupOutsideClick();
   }
   // ── Helpers ───────────────────────────────────────────────────
-  wireChips(container, group, onChange) {
-    container.querySelectorAll(`[data-group="${group}"] .chip`).forEach((btn) => {
-      btn.addEventListener("click", () => {
-        container.querySelectorAll(`[data-group="${group}"] .chip`).forEach((b) => b.classList.remove("sel"));
-        btn.classList.add("sel");
-        onChange(btn.dataset.value);
-      });
-    });
-  }
   positionHost(x, y) {
     if (!this.host) return;
     Object.assign(this.host.style, { position: "fixed", zIndex: "2147483647", left: "-9999px", top: "0" });
@@ -900,8 +862,7 @@ function isAvailable() {
 function detect(el) {
   let node = el;
   while (node && node !== document.documentElement) {
-    const wireId = node.getAttribute("wire:id");
-    if (wireId) return wireId;
+    if (node.getAttribute("wire:id")) return node;
     node = node.parentElement;
   }
   return null;
@@ -909,23 +870,22 @@ function detect(el) {
 function getContext(el) {
   var _a, _b;
   if (!isAvailable()) return null;
-  const wireId = detect(el);
-  if (!wireId) return null;
-  const component = window.Livewire.find(wireId);
-  if (!component) return null;
-  const snapshotData = (_b = (_a = component.snapshot) == null ? void 0 : _a.data) != null ? _b : {};
-  const data = {};
-  for (const key of Object.keys(snapshotData)) {
+  const wireEl = detect(el);
+  if (!wireEl) return null;
+  const wireId = wireEl.getAttribute("wire:id");
+  let componentName = "Unknown";
+  const snapshotAttr = wireEl.getAttribute("wire:snapshot");
+  if (snapshotAttr) {
     try {
-      data[key] = component.get(key);
+      const snapshot = JSON.parse(snapshotAttr);
+      componentName = (_b = (_a = snapshot == null ? void 0 : snapshot.memo) == null ? void 0 : _a.name) != null ? _b : "Unknown";
     } catch (e) {
     }
   }
   return {
     framework: "livewire",
-    component: component.name,
-    wire_id: wireId,
-    data
+    component: componentName,
+    wire_id: wireId
   };
 }
 
@@ -1107,7 +1067,7 @@ var Instruckt = class {
         framework
       };
       (_c = this.popup) == null ? void 0 : _c.showNew(pending, {
-        onSubmit: (result) => this.submitAnnotation(pending, result),
+        onSubmit: (result) => this.submitAnnotation(pending, result.comment),
         onCancel: () => {
         }
       });
@@ -1248,7 +1208,7 @@ var Instruckt = class {
     return null;
   }
   // ── Submit ────────────────────────────────────────────────────
-  async submitAnnotation(pending, result) {
+  async submitAnnotation(pending, comment) {
     var _a, _b, _c, _d;
     if (!this.session) {
       await this.connectSession();
@@ -1260,15 +1220,15 @@ var Instruckt = class {
     const payload = {
       x: pending.x / window.innerWidth * 100,
       y: pending.y + window.scrollY,
-      comment: result.comment,
+      comment,
       element: pending.elementName,
       elementPath: pending.elementPath,
       cssClasses: pending.cssClasses,
       boundingBox: pending.boundingBox,
       selectedText: pending.selectedText,
       nearbyText: pending.nearbyText,
-      intent: result.intent,
-      severity: result.severity,
+      intent: "fix",
+      severity: "important",
       framework: pending.framework,
       url: window.location.href
     };

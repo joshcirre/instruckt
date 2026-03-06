@@ -198,7 +198,7 @@ export class Instruckt {
     }
 
     this.popup?.showNew(pending, {
-      onSubmit: (result) => this.submitAnnotation(pending, result),
+      onSubmit: (result) => this.submitAnnotation(pending, result.comment),
       onCancel: () => {},
     })
   }
@@ -246,7 +246,7 @@ export class Instruckt {
 
   private async submitAnnotation(
     pending: PendingAnnotation,
-    result: { comment: string; intent: Annotation['intent']; severity: Annotation['severity'] },
+    comment: string,
   ): Promise<void> {
     if (!this.session) {
       await this.connectSession()
@@ -259,15 +259,15 @@ export class Instruckt {
     const payload: AnnotationPayload = {
       x: (pending.x / window.innerWidth) * 100,
       y: pending.y + window.scrollY,
-      comment: result.comment,
+      comment,
       element: pending.elementName,
       elementPath: pending.elementPath,
       cssClasses: pending.cssClasses,
       boundingBox: pending.boundingBox,
       selectedText: pending.selectedText,
       nearbyText: pending.nearbyText,
-      intent: result.intent,
-      severity: result.severity,
+      intent: 'fix',
+      severity: 'important',
       framework: pending.framework,
       url: window.location.href,
     }

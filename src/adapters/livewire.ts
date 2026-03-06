@@ -1,22 +1,8 @@
 import type { FrameworkContext } from '../types'
 
-interface LivewireComponent {
-  name: string
-  id: string
-  get(key: string): unknown
-  snapshot?: {
-    data?: Record<string, unknown>
-  }
-}
-
-interface LivewireGlobal {
-  find(id: string): LivewireComponent | undefined
-  all(): LivewireComponent[]
-}
-
 declare global {
   interface Window {
-    Livewire?: LivewireGlobal
+    Livewire?: { find(id: string): unknown }
   }
 }
 
@@ -25,11 +11,10 @@ export function isAvailable(): boolean {
 }
 
 /** Walk up the DOM from el to find the nearest wire:id ancestor */
-export function detect(el: Element): string | null {
+export function detect(el: Element): Element | null {
   let node: Element | null = el
   while (node && node !== document.documentElement) {
-    const wireId = node.getAttribute('wire:id')
-    if (wireId) return wireId
+    if (node.getAttribute('wire:id')) return node
     node = node.parentElement
   }
   return null
@@ -39,28 +24,26 @@ export function detect(el: Element): string | null {
 export function getContext(el: Element): FrameworkContext | null {
   if (!isAvailable()) return null
 
-  const wireId = detect(el)
-  if (!wireId) return null
+  const wireEl = detect(el)
+  if (!wireEl) return null
 
-  const component = window.Livewire!.find(wireId)
-  if (!component) return null
+  const wireId = wireEl.getAttribute('wire:id')!
 
-  // Snapshot data holds the current public properties
-  const snapshotData = component.snapshot?.data ?? {}
-  const data: Record<string, unknown> = {}
-
-  for (const key of Object.keys(snapshotData)) {
+  // In Livewire v3, the component name lives in the wire:snapshot attribute
+  let componentName = 'Unknown'
+  const snapshotAttr = wireEl.getAttribute('wire:snapshot')
+  if (snapshotAttr) {
     try {
-      data[key] = component.get(key)
+      const snapshot = JSON.parse(snapshotAttr)
+      componentName = snapshot?.memo?.name ?? 'Unknown'
     } catch {
-      // property may not be readable
+      // malformed snapshot
     }
   }
 
   return {
     framework: 'livewire',
-    component: component.name,
+    component: componentName,
     wire_id: wireId,
-    data,
   }
 }
