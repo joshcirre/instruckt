@@ -8,6 +8,7 @@ export default defineConfig([
     globalName: 'Instruckt',
     outDir: 'dist',
     outExtension: () => ({ js: '.iife.js' }),
+    noExternal: ['html-to-image'],
     minify: true,
     sourcemap: true,
     dts: false,
