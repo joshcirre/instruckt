@@ -2348,20 +2348,6 @@ function nodeFilter(node) {
   if ((_a2 = node.getAttribute) == null ? void 0 : _a2.call(node, "data-instruckt")) return false;
   return true;
 }
-function hasShadowDOM() {
-  if (document.querySelector("[data-flux], flux\\:button, flux\\:input")) return true;
-  for (const child of document.body.querySelectorAll("*")) {
-    if (child.shadowRoot && !child.hasAttribute("data-instruckt")) return true;
-  }
-  return false;
-}
-var _useScreenCapture = null;
-function shouldUseScreenCapture() {
-  if (_useScreenCapture === null) {
-    _useScreenCapture = hasShadowDOM();
-  }
-  return _useScreenCapture;
-}
 var activeStream = null;
 async function getStream() {
   if (activeStream && activeStream.active) return activeStream;
@@ -2408,15 +2394,13 @@ function captureRectFromStream(stream, rect) {
   });
 }
 async function captureElement(el) {
-  if (!shouldUseScreenCapture()) {
-    try {
-      const dataUrl = await domToPng(el, {
-        scale: 2,
-        filter: nodeFilter
-      });
-      if (dataUrl) return dataUrl;
-    } catch (e) {
-    }
+  try {
+    const dataUrl = await domToPng(el, {
+      scale: 2,
+      filter: nodeFilter
+    });
+    if (dataUrl) return dataUrl;
+  } catch (e) {
   }
   try {
     const stream = await getStream();
@@ -2427,15 +2411,13 @@ async function captureElement(el) {
   }
 }
 async function captureRegion(rect) {
-  if (!shouldUseScreenCapture()) {
-    try {
-      const full = await domToPng(document.body, {
-        scale: 2,
-        filter: nodeFilter
-      });
-      if (full) return await cropImage(full, rect);
-    } catch (e) {
-    }
+  try {
+    const full = await domToPng(document.body, {
+      scale: 2,
+      filter: nodeFilter
+    });
+    if (full) return await cropImage(full, rect);
+  } catch (e) {
   }
   try {
     const stream = await getStream();

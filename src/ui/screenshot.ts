@@ -6,29 +6,6 @@ function nodeFilter(node: HTMLElement): boolean {
   return true
 }
 
-/** Detect if the page uses shadow DOM with adopted stylesheets (Flux UI, Shoelace, etc.)
- *  that breaks DOM-to-image. Note: document.adoptedStyleSheets alone is NOT sufficient —
- *  Tailwind v4's Vite plugin uses it for all apps in dev mode. We need actual shadow roots. */
-function hasShadowDOM(): boolean {
-  // Check for Flux UI elements (most common case)
-  if (document.querySelector('[data-flux], flux\\:button, flux\\:input')) return true
-  // Check for non-instruckt shadow roots (web components, Shoelace, etc.)
-  for (const child of document.body.querySelectorAll('*')) {
-    if (child.shadowRoot && !child.hasAttribute('data-instruckt')) return true
-  }
-  return false
-}
-
-let _useScreenCapture: boolean | null = null
-
-/** Returns true if we should skip DOM-to-image and go straight to Screen Capture API */
-function shouldUseScreenCapture(): boolean {
-  if (_useScreenCapture === null) {
-    _useScreenCapture = hasShadowDOM()
-  }
-  return _useScreenCapture
-}
-
 // ── Screen Capture API fallback ──────────────────────────────
 
 let activeStream: MediaStream | null = null
@@ -79,17 +56,15 @@ function captureRectFromStream(stream: MediaStream, rect: DOMRect): Promise<stri
 
 /** Capture a DOM element as a base64 PNG data URL */
 export async function captureElement(el: Element): Promise<string | null> {
-  if (!shouldUseScreenCapture()) {
-    // Try modern-screenshot first (no permission needed, works on plain DOM)
-    try {
-      const dataUrl = await domToPng(el as HTMLElement, {
-        scale: 2,
-        filter: nodeFilter,
-      })
-      if (dataUrl) return dataUrl
-    } catch { /* fall through */ }
-  }
-  // Screen Capture API — works everywhere including shadow DOM / Flux
+  // Try modern-screenshot first (no permission needed)
+  try {
+    const dataUrl = await domToPng(el as HTMLElement, {
+      scale: 2,
+      filter: nodeFilter,
+    })
+    if (dataUrl) return dataUrl
+  } catch { /* fall through */ }
+  // Fall back to Screen Capture API (works on shadow DOM / Flux)
   try {
     const stream = await getStream()
     return await captureRectFromStream(stream, el.getBoundingClientRect())
@@ -101,17 +76,15 @@ export async function captureElement(el: Element): Promise<string | null> {
 
 /** Capture a rectangular region of the viewport as a base64 PNG data URL */
 export async function captureRegion(rect: DOMRect): Promise<string | null> {
-  if (!shouldUseScreenCapture()) {
-    // Try modern-screenshot first (no permission needed, works on plain DOM)
-    try {
-      const full = await domToPng(document.body, {
-        scale: 2,
-        filter: nodeFilter,
-      })
-      if (full) return await cropImage(full, rect)
-    } catch { /* fall through */ }
-  }
-  // Screen Capture API — works everywhere including shadow DOM / Flux
+  // Try modern-screenshot first (no permission needed)
+  try {
+    const full = await domToPng(document.body, {
+      scale: 2,
+      filter: nodeFilter,
+    })
+    if (full) return await cropImage(full, rect)
+  } catch { /* fall through */ }
+  // Fall back to Screen Capture API (works on shadow DOM / Flux)
   try {
     const stream = await getStream()
     return await captureRectFromStream(stream, rect)
