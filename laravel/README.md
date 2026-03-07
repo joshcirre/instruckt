@@ -24,24 +24,16 @@ This publishes the config, copies the JS assets, and automatically configures MC
 
 ## Setup
 
-### Livewire / Blade
+Add the import to your `resources/js/app.js` (or `.ts`, `.tsx`, `.jsx`):
 
-Add the toolbar component to your layout (typically before `</body>`):
-
-```blade
-<x-instruckt-toolbar />
-```
-
-### Inertia (React / Vue / Svelte)
-
-Add the import to your `resources/js/app.tsx` (or `.ts`, `.jsx`, `.js`):
-
-```ts
+```js
 import { Instruckt } from 'instruckt';
 new Instruckt({ endpoint: '/instruckt' });
 ```
 
-The install command auto-detects Inertia and adds this for you.
+The install command auto-detects your setup and adds this for you. This works for **all frameworks** — Livewire, Inertia (Vue/React/Svelte), or plain Blade — since Laravel apps already have a Vite JS entrypoint.
+
+> **Alternative: Blade component** — If you prefer not to touch your JS files, you can use `<x-instruckt-toolbar />` in your layout instead. See [Toolbar Component](#toolbar-component) below.
 
 ### Connect Your AI Agent
 
@@ -113,9 +105,15 @@ return [
 ];
 ```
 
-## Toolbar Component
+## Toolbar Component (Alternative)
 
-The `<x-instruckt-toolbar />` component accepts optional attributes:
+If you'd rather not add a JS import, you can use the Blade component. Add it to your layout(s) before `</body>`:
+
+```blade
+<x-instruckt-toolbar />
+```
+
+The component loads the IIFE build and accepts optional attributes:
 
 ```blade
 <x-instruckt-toolbar
@@ -131,7 +129,7 @@ You can also set colors and keys globally via `config/instruckt.php` instead of 
 
 ## How It Works
 
-1. The Blade component loads `instruckt.iife.js` and initializes the annotation UI
+1. The JS import (or Blade component) initializes the annotation UI
 2. Users click elements and leave feedback — optionally capturing screenshots
 3. Annotations auto-copy as structured markdown to the clipboard for pasting into AI agents
 4. Annotations are persisted to `storage/app/_instruckt/` via API routes

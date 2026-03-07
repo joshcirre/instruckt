@@ -8,7 +8,7 @@ export default defineConfig([
     globalName: 'Instruckt',
     outDir: 'dist',
     outExtension: () => ({ js: '.iife.js' }),
-    noExternal: ['html-to-image'],
+    noExternal: ['modern-screenshot'],
     minify: true,
     sourcemap: true,
     dts: false,
@@ -26,7 +26,7 @@ export default defineConfig([
     outExtension: ({ format }) => ({
       js: format === 'esm' ? '.esm.js' : '.cjs.js',
     }),
-    noExternal: ['html-to-image'],
+    noExternal: ['modern-screenshot'],
     sourcemap: true,
     dts: true,
     platform: 'browser',

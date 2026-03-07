@@ -114,7 +114,7 @@ Default shortcuts (customizable via `keys` config):
 ## Features
 
 - **Framework detection** — automatically identifies Livewire, Vue, Svelte, and React components
-- **Screenshots** — capture element or region screenshots attached to annotations
+- **Screenshots** — capture element or region screenshots; uses DOM-to-image on standard apps, automatically falls back to Screen Capture API on shadow DOM frameworks (Flux UI, etc.)
 - **Shadow DOM isolation** — all UI renders in shadow roots so it never conflicts with your styles
 - **Copy as markdown** — annotations auto-copy as structured markdown optimized for AI agents
 - **Freeze mode** — pause animations, freeze popovers/dropdowns, and block all navigation

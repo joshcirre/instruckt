@@ -66,7 +66,7 @@ final class Store
     }
 
     /**
-     * Save a base64 data URL screenshot to disk and return the relative path.
+     * Save a data URL screenshot to disk and return the relative path.
      */
     private static function saveScreenshot(string $id, string $dataUrl): ?string
     {
@@ -80,15 +80,25 @@ final class Store
             mkdir($dir, 0755, true);
         }
 
-        // Extract binary data from data URL
+        // Determine format and extract data
         $parts = explode(',', $dataUrl, 2);
-        $binary = base64_decode($parts[1] ?? '');
+        $header = $parts[0] ?? '';
+        $data = $parts[1] ?? '';
+
+        if (str_contains($header, ';base64')) {
+            $binary = base64_decode($data);
+            $ext = str_contains($header, 'image/svg+xml') ? 'svg' : 'png';
+        } else {
+            // URL-encoded (e.g. SVG data URLs from snapdom)
+            $binary = urldecode($data);
+            $ext = 'svg';
+        }
 
         if (! $binary) {
             return null;
         }
 
-        $filename = "{$id}.png";
+        $filename = "{$id}.{$ext}";
         file_put_contents("{$dir}/{$filename}", $binary);
 
         return "screenshots/{$filename}";

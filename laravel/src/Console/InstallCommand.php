@@ -184,19 +184,26 @@ final class InstallCommand extends Command
 
     private function injectToolbar(string $framework): void
     {
-        $isInertia = str_starts_with($framework, 'inertia-');
-
-        if ($isInertia) {
-            $this->injectInertiaToolbar($framework);
-        } else {
-            $this->injectBladeToolbar($framework);
+        // Always prefer JS entry point (works for all frameworks including Livewire)
+        if ($this->injectJsToolbar($framework)) {
+            return;
         }
+
+        // Fall back to Blade component if no JS entry point found
+        $this->injectBladeToolbar($framework);
     }
 
-    private function injectInertiaToolbar(string $framework): void
+    /** @return bool Whether injection succeeded */
+    private function injectJsToolbar(string $framework): bool
     {
-        $jsFramework = str_replace('inertia-', '', $framework);
         $routePrefix = config('instruckt.route_prefix', 'instruckt');
+
+        // Detect JS framework adapter to activate
+        $jsFramework = match (true) {
+            str_starts_with($framework, 'inertia-') => str_replace('inertia-', '', $framework),
+            $framework === 'livewire' => 'livewire',
+            default => null,
+        };
 
         // Find the JS/TS entry point
         $candidates = [
@@ -217,12 +224,7 @@ final class InstallCommand extends Command
         }
 
         if (! $appPath) {
-            $this->components->warn('Could not find resources/js/app.{tsx,ts,jsx,js}');
-            $this->line("  Add this to your app entry point:");
-            $this->line("  import { Instruckt } from 'instruckt';");
-            $this->line("  new Instruckt({ endpoint: '/{$routePrefix}' });");
-
-            return;
+            return false;
         }
 
         $contents = File::get($appPath);
@@ -231,14 +233,16 @@ final class InstallCommand extends Command
         if (str_contains($contents, 'instruckt')) {
             $this->line("  {$relative} already has instruckt configured.");
 
-            return;
+            return true;
         }
 
-        // Append the import and init at the end of the file
-        $snippet = "\n// Instruckt — visual feedback toolbar\nimport { Instruckt } from 'instruckt';\nnew Instruckt({ endpoint: '/{$routePrefix}', adapters: ['{$jsFramework}'] });\n";
+        $adaptersOpt = $jsFramework ? ", adapters: ['{$jsFramework}']" : '';
+        $snippet = "\n// Instruckt — visual feedback toolbar\nimport { Instruckt } from 'instruckt';\nnew Instruckt({ endpoint: '/{$routePrefix}'{$adaptersOpt} });\n";
 
         File::append($appPath, $snippet);
         $this->components->info("Injected instruckt into {$relative}");
+
+        return true;
     }
 
     private function injectBladeToolbar(string $framework): void

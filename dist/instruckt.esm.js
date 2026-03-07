@@ -17,6 +17,18 @@ var __spreadValues = (a, b) => {
   return a;
 };
 var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
+var __objRest = (source, exclude) => {
+  var target = {};
+  for (var prop in source)
+    if (__hasOwnProp.call(source, prop) && exclude.indexOf(prop) < 0)
+      target[prop] = source[prop];
+  if (source != null && __getOwnPropSymbols)
+    for (var prop of __getOwnPropSymbols(source)) {
+      if (exclude.indexOf(prop) < 0 && __propIsEnum.call(source, prop))
+        target[prop] = source[prop];
+    }
+  return target;
+};
 
 // src/api.ts
 function getCsrfToken() {
@@ -220,6 +232,14 @@ var TOOLBAR_CSS = (
   left: 100%;
   width: 6px;
   height: 100%;
+}
+/* Clear-page tooltip shows above-left so it doesn't cover the clear-all button */
+.clear-wrap > .btn:first-child[data-tooltip]::before {
+  right: 0;
+  left: auto;
+  top: auto;
+  bottom: calc(100% + 8px);
+  transform: none;
 }
 .clear-wrap:hover .clear-all-btn { display: flex; align-items: center; justify-content: center; }
 
@@ -520,7 +540,7 @@ var Toolbar = class {
     this.setupDrag();
   }
   build() {
-    var _a, _b, _c, _d, _e;
+    var _a2, _b, _c, _d, _e;
     this.host = document.createElement("div");
     this.host.setAttribute("data-instruckt", "toolbar");
     this.shadow = this.host.attachShadow({ mode: "open" });
@@ -530,7 +550,7 @@ var Toolbar = class {
     this.toolbarEl = document.createElement("div");
     this.toolbarEl.className = "toolbar";
     const k = this.keys;
-    this.annotateBtn = this.makeBtn(ICONS.annotate, `Annotate elements (${((_a = k.annotate) != null ? _a : "A").toUpperCase()})`, () => {
+    this.annotateBtn = this.makeBtn(ICONS.annotate, `Annotate elements (${((_a2 = k.annotate) != null ? _a2 : "A").toUpperCase()})`, () => {
       const next = !this.annotateActive;
       this.setAnnotateActive(next);
       this.callbacks.onToggleAnnotate(next);
@@ -553,16 +573,16 @@ var Toolbar = class {
     const clearWrap = document.createElement("div");
     clearWrap.className = "clear-wrap";
     const clearBtn = this.makeBtn(ICONS.clear, `Clear this page (${((_d = k.clearPage) != null ? _d : "X").toUpperCase()})`, () => {
-      var _a2, _b2;
-      (_b2 = (_a2 = this.callbacks).onClearPage) == null ? void 0 : _b2.call(_a2);
+      var _a3, _b2;
+      (_b2 = (_a3 = this.callbacks).onClearPage) == null ? void 0 : _b2.call(_a3);
     });
     clearBtn.classList.add("danger-btn");
     const clearAllBtn = this.makeBtn(
       `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
       "Delete all instructions.",
       () => {
-        var _a2, _b2;
-        return (_b2 = (_a2 = this.callbacks).onClearAll) == null ? void 0 : _b2.call(_a2);
+        var _a3, _b2;
+        return (_b2 = (_a3 = this.callbacks).onClearAll) == null ? void 0 : _b2.call(_a3);
       }
     );
     clearAllBtn.classList.add("danger-btn", "clear-all-btn");
@@ -653,15 +673,15 @@ var Toolbar = class {
     });
   }
   setMinimized(min) {
-    var _a, _b;
+    var _a2, _b;
     this.minimized = min;
     this.toolbarEl.style.display = min ? "none" : "";
     this.fab.style.display = min ? "" : "none";
     this.updateFabBadge();
-    (_b = (_a = this.callbacks).onMinimize) == null ? void 0 : _b.call(_a, min);
+    (_b = (_a2 = this.callbacks).onMinimize) == null ? void 0 : _b.call(_a2, min);
   }
   updateFabBadge() {
-    var _a;
+    var _a2;
     if (this.totalCount > 0 && this.minimized) {
       if (!this.fabBadge) {
         this.fabBadge = document.createElement("span");
@@ -670,7 +690,7 @@ var Toolbar = class {
       }
       this.fabBadge.textContent = this.totalCount > 99 ? "99+" : String(this.totalCount);
     } else {
-      (_a = this.fabBadge) == null ? void 0 : _a.remove();
+      (_a2 = this.fabBadge) == null ? void 0 : _a2.remove();
       this.fabBadge = null;
     }
   }
@@ -723,7 +743,7 @@ var Toolbar = class {
 // src/ui/highlight.ts
 var ElementHighlight = class {
   constructor() {
-    var _a;
+    var _a2;
     this.el = document.createElement("div");
     Object.assign(this.el.style, {
       position: "fixed",
@@ -737,7 +757,7 @@ var ElementHighlight = class {
       display: "none"
     });
     this.el.setAttribute("data-instruckt", "highlight");
-    const root = (_a = document.getElementById("instruckt-root")) != null ? _a : document.body;
+    const root = (_a2 = document.getElementById("instruckt-root")) != null ? _a2 : document.body;
     root.appendChild(this.el);
   }
   show(el) {
@@ -762,840 +782,1670 @@ var ElementHighlight = class {
   }
 };
 
-// node_modules/html-to-image/es/util.js
+// node_modules/modern-screenshot/dist/index.mjs
+function changeJpegDpi(uint8Array, dpi) {
+  uint8Array[13] = 1;
+  uint8Array[14] = dpi >> 8;
+  uint8Array[15] = dpi & 255;
+  uint8Array[16] = dpi >> 8;
+  uint8Array[17] = dpi & 255;
+  return uint8Array;
+}
+var _P = "p".charCodeAt(0);
+var _H = "H".charCodeAt(0);
+var _Y = "Y".charCodeAt(0);
+var _S = "s".charCodeAt(0);
+var pngDataTable;
+function createPngDataTable() {
+  const crcTable = new Int32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) {
+      c = c & 1 ? 3988292384 ^ c >>> 1 : c >>> 1;
+    }
+    crcTable[n] = c;
+  }
+  return crcTable;
+}
+function calcCrc(uint8Array) {
+  let c = -1;
+  if (!pngDataTable)
+    pngDataTable = createPngDataTable();
+  for (let n = 0; n < uint8Array.length; n++) {
+    c = pngDataTable[(c ^ uint8Array[n]) & 255] ^ c >>> 8;
+  }
+  return c ^ -1;
+}
+function searchStartOfPhys(uint8Array) {
+  const length = uint8Array.length - 1;
+  for (let i = length; i >= 4; i--) {
+    if (uint8Array[i - 4] === 9 && uint8Array[i - 3] === _P && uint8Array[i - 2] === _H && uint8Array[i - 1] === _Y && uint8Array[i] === _S) {
+      return i - 3;
+    }
+  }
+  return 0;
+}
+function changePngDpi(uint8Array, dpi, overwritepHYs = false) {
+  const physChunk = new Uint8Array(13);
+  dpi *= 39.3701;
+  physChunk[0] = _P;
+  physChunk[1] = _H;
+  physChunk[2] = _Y;
+  physChunk[3] = _S;
+  physChunk[4] = dpi >>> 24;
+  physChunk[5] = dpi >>> 16;
+  physChunk[6] = dpi >>> 8;
+  physChunk[7] = dpi & 255;
+  physChunk[8] = physChunk[4];
+  physChunk[9] = physChunk[5];
+  physChunk[10] = physChunk[6];
+  physChunk[11] = physChunk[7];
+  physChunk[12] = 1;
+  const crc = calcCrc(physChunk);
+  const crcChunk = new Uint8Array(4);
+  crcChunk[0] = crc >>> 24;
+  crcChunk[1] = crc >>> 16;
+  crcChunk[2] = crc >>> 8;
+  crcChunk[3] = crc & 255;
+  if (overwritepHYs) {
+    const startingIndex = searchStartOfPhys(uint8Array);
+    uint8Array.set(physChunk, startingIndex);
+    uint8Array.set(crcChunk, startingIndex + 13);
+    return uint8Array;
+  } else {
+    const chunkLength = new Uint8Array(4);
+    chunkLength[0] = 0;
+    chunkLength[1] = 0;
+    chunkLength[2] = 0;
+    chunkLength[3] = 9;
+    const finalHeader = new Uint8Array(54);
+    finalHeader.set(uint8Array, 0);
+    finalHeader.set(chunkLength, 33);
+    finalHeader.set(physChunk, 37);
+    finalHeader.set(crcChunk, 50);
+    return finalHeader;
+  }
+}
+var b64PhysSignature1 = "AAlwSFlz";
+var b64PhysSignature2 = "AAAJcEhZ";
+var b64PhysSignature3 = "AAAACXBI";
+function detectPhysChunkFromDataUrl(dataUrl) {
+  let b64index = dataUrl.indexOf(b64PhysSignature1);
+  if (b64index === -1) {
+    b64index = dataUrl.indexOf(b64PhysSignature2);
+  }
+  if (b64index === -1) {
+    b64index = dataUrl.indexOf(b64PhysSignature3);
+  }
+  return b64index;
+}
+var PREFIX = "[modern-screenshot]";
+var IN_BROWSER = typeof window !== "undefined";
+var SUPPORT_WEB_WORKER = IN_BROWSER && "Worker" in window;
+var SUPPORT_ATOB = IN_BROWSER && "atob" in window;
+var SUPPORT_BTOA = IN_BROWSER && "btoa" in window;
+var _a;
+var USER_AGENT = IN_BROWSER ? (_a = window.navigator) == null ? void 0 : _a.userAgent : "";
+var IN_CHROME = USER_AGENT.includes("Chrome");
+var IN_SAFARI = USER_AGENT.includes("AppleWebKit") && !IN_CHROME;
+var IN_FIREFOX = USER_AGENT.includes("Firefox");
+var isContext = (value) => value && "__CONTEXT__" in value;
+var isCssFontFaceRule = (rule) => rule.constructor.name === "CSSFontFaceRule";
+var isCSSImportRule = (rule) => rule.constructor.name === "CSSImportRule";
+var isLayerBlockRule = (rule) => rule.constructor.name === "CSSLayerBlockRule";
+var isElementNode = (node) => node.nodeType === 1;
+var isSVGElementNode = (node) => typeof node.className === "object";
+var isSVGImageElementNode = (node) => node.tagName === "image";
+var isSVGUseElementNode = (node) => node.tagName === "use";
+var isHTMLElementNode = (node) => isElementNode(node) && typeof node.style !== "undefined" && !isSVGElementNode(node);
+var isCommentNode = (node) => node.nodeType === 8;
+var isTextNode = (node) => node.nodeType === 3;
+var isImageElement = (node) => node.tagName === "IMG";
+var isVideoElement = (node) => node.tagName === "VIDEO";
+var isCanvasElement = (node) => node.tagName === "CANVAS";
+var isTextareaElement = (node) => node.tagName === "TEXTAREA";
+var isInputElement = (node) => node.tagName === "INPUT";
+var isStyleElement = (node) => node.tagName === "STYLE";
+var isScriptElement = (node) => node.tagName === "SCRIPT";
+var isSelectElement = (node) => node.tagName === "SELECT";
+var isSlotElement = (node) => node.tagName === "SLOT";
+var isIFrameElement = (node) => node.tagName === "IFRAME";
+var consoleWarn = (...args) => console.warn(PREFIX, ...args);
+function supportWebp(ownerDocument) {
+  var _a2;
+  const canvas = (_a2 = ownerDocument == null ? void 0 : ownerDocument.createElement) == null ? void 0 : _a2.call(ownerDocument, "canvas");
+  if (canvas) {
+    canvas.height = canvas.width = 1;
+  }
+  return Boolean(canvas) && "toDataURL" in canvas && Boolean(canvas.toDataURL("image/webp").includes("image/webp"));
+}
+var isDataUrl = (url) => url.startsWith("data:");
 function resolveUrl(url, baseUrl) {
-  if (url.match(/^[a-z]+:\/\//i)) {
+  if (url.match(/^[a-z]+:\/\//i))
     return url;
-  }
-  if (url.match(/^\/\//)) {
+  if (IN_BROWSER && url.match(/^\/\//))
     return window.location.protocol + url;
-  }
-  if (url.match(/^[a-z]+:/i)) {
+  if (url.match(/^[a-z]+:/i))
     return url;
-  }
-  const doc = document.implementation.createHTMLDocument();
+  if (!IN_BROWSER)
+    return url;
+  const doc = getDocument().implementation.createHTMLDocument();
   const base = doc.createElement("base");
   const a = doc.createElement("a");
   doc.head.appendChild(base);
   doc.body.appendChild(a);
-  if (baseUrl) {
+  if (baseUrl)
     base.href = baseUrl;
-  }
   a.href = url;
   return a.href;
 }
-var uuid = /* @__PURE__ */ (() => {
+function getDocument(target) {
+  var _a2;
+  return (_a2 = target && isElementNode(target) ? target == null ? void 0 : target.ownerDocument : target) != null ? _a2 : window.document;
+}
+var XMLNS = "http://www.w3.org/2000/svg";
+function createSvg(width, height, ownerDocument) {
+  const svg = getDocument(ownerDocument).createElementNS(XMLNS, "svg");
+  svg.setAttributeNS(null, "width", width.toString());
+  svg.setAttributeNS(null, "height", height.toString());
+  svg.setAttributeNS(null, "viewBox", `0 0 ${width} ${height}`);
+  return svg;
+}
+function svgToDataUrl(svg, removeControlCharacter) {
+  let xhtml = new XMLSerializer().serializeToString(svg);
+  if (removeControlCharacter) {
+    xhtml = xhtml.replace(/[\u0000-\u0008\v\f\u000E-\u001F\uD800-\uDFFF\uFFFE\uFFFF]/gu, "");
+  }
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(xhtml)}`;
+}
+function readBlob(blob, type) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.onabort = () => reject(new Error(`Failed read blob to ${type}`));
+    if (type === "dataUrl") {
+      reader.readAsDataURL(blob);
+    } else if (type === "arrayBuffer") {
+      reader.readAsArrayBuffer(blob);
+    }
+  });
+}
+var blobToDataUrl = (blob) => readBlob(blob, "dataUrl");
+function createImage(url, ownerDocument) {
+  const img = getDocument(ownerDocument).createElement("img");
+  img.decoding = "sync";
+  img.loading = "eager";
+  img.src = url;
+  return img;
+}
+function loadMedia(media, options) {
+  return new Promise((resolve) => {
+    const { timeout, ownerDocument, onError: userOnError, onWarn } = options != null ? options : {};
+    const node = typeof media === "string" ? createImage(media, getDocument(ownerDocument)) : media;
+    let timer = null;
+    let removeEventListeners = null;
+    function onResolve() {
+      resolve(node);
+      timer && clearTimeout(timer);
+      removeEventListeners == null ? void 0 : removeEventListeners();
+    }
+    if (timeout) {
+      timer = setTimeout(onResolve, timeout);
+    }
+    if (isVideoElement(node)) {
+      const currentSrc = node.currentSrc || node.src;
+      if (!currentSrc) {
+        if (node.poster) {
+          return loadMedia(node.poster, options).then(resolve);
+        }
+        return onResolve();
+      }
+      if (node.readyState >= 2) {
+        return onResolve();
+      }
+      const onLoadeddata = onResolve;
+      const onError = (error) => {
+        onWarn == null ? void 0 : onWarn(
+          "Failed video load",
+          currentSrc,
+          error
+        );
+        userOnError == null ? void 0 : userOnError(error);
+        onResolve();
+      };
+      removeEventListeners = () => {
+        node.removeEventListener("loadeddata", onLoadeddata);
+        node.removeEventListener("error", onError);
+      };
+      node.addEventListener("loadeddata", onLoadeddata, { once: true });
+      node.addEventListener("error", onError, { once: true });
+    } else {
+      const currentSrc = isSVGImageElementNode(node) ? node.href.baseVal : node.currentSrc || node.src;
+      if (!currentSrc) {
+        return onResolve();
+      }
+      const onLoad = async () => {
+        if (isImageElement(node) && "decode" in node) {
+          try {
+            await node.decode();
+          } catch (error) {
+            onWarn == null ? void 0 : onWarn(
+              "Failed to decode image, trying to render anyway",
+              node.dataset.originalSrc || currentSrc,
+              error
+            );
+          }
+        }
+        onResolve();
+      };
+      const onError = (error) => {
+        onWarn == null ? void 0 : onWarn(
+          "Failed image load",
+          node.dataset.originalSrc || currentSrc,
+          error
+        );
+        onResolve();
+      };
+      if (isImageElement(node) && node.complete) {
+        return onLoad();
+      }
+      removeEventListeners = () => {
+        node.removeEventListener("load", onLoad);
+        node.removeEventListener("error", onError);
+      };
+      node.addEventListener("load", onLoad, { once: true });
+      node.addEventListener("error", onError, { once: true });
+    }
+  });
+}
+async function waitUntilLoad(node, options) {
+  if (isHTMLElementNode(node)) {
+    if (isImageElement(node) || isVideoElement(node)) {
+      await loadMedia(node, options);
+    } else {
+      await Promise.all(
+        ["img", "video"].flatMap((selectors) => {
+          return Array.from(node.querySelectorAll(selectors)).map((el) => loadMedia(el, options));
+        })
+      );
+    }
+  }
+}
+var uuid = /* @__PURE__ */ (function uuid2() {
   let counter = 0;
-  const random = () => (
-    // eslint-disable-next-line no-bitwise
-    `0000${(Math.random() * 36 ** 4 << 0).toString(36)}`.slice(-4)
-  );
+  const random = () => `0000${(Math.random() * 36 ** 4 << 0).toString(36)}`.slice(-4);
   return () => {
     counter += 1;
     return `u${random()}${counter}`;
   };
 })();
-function toArray(arrayLike) {
-  const arr = [];
-  for (let i = 0, l = arrayLike.length; i < l; i++) {
-    arr.push(arrayLike[i]);
+function splitFontFamily(fontFamily) {
+  return fontFamily == null ? void 0 : fontFamily.split(",").map((val) => val.trim().replace(/"|'/g, "").toLowerCase()).filter(Boolean);
+}
+var uid = 0;
+function createLogger(debug) {
+  const prefix = `${PREFIX}[#${uid}]`;
+  uid++;
+  return {
+    // eslint-disable-next-line no-console
+    time: (label) => debug && console.time(`${prefix} ${label}`),
+    // eslint-disable-next-line no-console
+    timeEnd: (label) => debug && console.timeEnd(`${prefix} ${label}`),
+    warn: (...args) => debug && consoleWarn(...args)
+  };
+}
+function getDefaultRequestInit(bypassingCache) {
+  return {
+    cache: bypassingCache ? "no-cache" : "force-cache"
+  };
+}
+async function orCreateContext(node, options) {
+  return isContext(node) ? node : createContext(node, __spreadProps(__spreadValues({}, options), { autoDestruct: true }));
+}
+async function createContext(node, options) {
+  var _a2, _b, _c, _d, _e;
+  const { scale = 1, workerUrl, workerNumber = 1 } = options || {};
+  const debug = Boolean(options == null ? void 0 : options.debug);
+  const features = (_a2 = options == null ? void 0 : options.features) != null ? _a2 : true;
+  const ownerDocument = (_b = node.ownerDocument) != null ? _b : IN_BROWSER ? window.document : void 0;
+  const ownerWindow = (_d = (_c = node.ownerDocument) == null ? void 0 : _c.defaultView) != null ? _d : IN_BROWSER ? window : void 0;
+  const requests = /* @__PURE__ */ new Map();
+  const context = __spreadProps(__spreadValues({
+    // Options
+    width: 0,
+    height: 0,
+    quality: 1,
+    type: "image/png",
+    scale,
+    backgroundColor: null,
+    style: null,
+    filter: null,
+    maximumCanvasSize: 0,
+    timeout: 3e4,
+    progress: null,
+    debug,
+    fetch: __spreadValues({
+      requestInit: getDefaultRequestInit((_e = options == null ? void 0 : options.fetch) == null ? void 0 : _e.bypassingCache),
+      placeholderImage: "data:image/png;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+      bypassingCache: false
+    }, options == null ? void 0 : options.fetch),
+    fetchFn: null,
+    font: {},
+    drawImageInterval: 100,
+    workerUrl: null,
+    workerNumber,
+    onCloneEachNode: null,
+    onCloneNode: null,
+    onEmbedNode: null,
+    onCreateForeignObjectSvg: null,
+    includeStyleProperties: null,
+    autoDestruct: false
+  }, options), {
+    // InternalContext
+    __CONTEXT__: true,
+    log: createLogger(debug),
+    node,
+    ownerDocument,
+    ownerWindow,
+    dpi: scale === 1 ? null : 96 * scale,
+    svgStyleElement: createStyleElement(ownerDocument),
+    svgDefsElement: ownerDocument == null ? void 0 : ownerDocument.createElementNS(XMLNS, "defs"),
+    svgStyles: /* @__PURE__ */ new Map(),
+    defaultComputedStyles: /* @__PURE__ */ new Map(),
+    workers: [
+      ...Array.from({
+        length: SUPPORT_WEB_WORKER && workerUrl && workerNumber ? workerNumber : 0
+      })
+    ].map(() => {
+      try {
+        const worker = new Worker(workerUrl);
+        worker.onmessage = async (event) => {
+          var _a3, _b2, _c2, _d2;
+          const { url, result } = event.data;
+          if (result) {
+            (_b2 = (_a3 = requests.get(url)) == null ? void 0 : _a3.resolve) == null ? void 0 : _b2.call(_a3, result);
+          } else {
+            (_d2 = (_c2 = requests.get(url)) == null ? void 0 : _c2.reject) == null ? void 0 : _d2.call(_c2, new Error(`Error receiving message from worker: ${url}`));
+          }
+        };
+        worker.onmessageerror = (event) => {
+          var _a3, _b2;
+          const { url } = event.data;
+          (_b2 = (_a3 = requests.get(url)) == null ? void 0 : _a3.reject) == null ? void 0 : _b2.call(_a3, new Error(`Error receiving message from worker: ${url}`));
+        };
+        return worker;
+      } catch (error) {
+        context.log.warn("Failed to new Worker", error);
+        return null;
+      }
+    }).filter(Boolean),
+    fontFamilies: /* @__PURE__ */ new Map(),
+    fontCssTexts: /* @__PURE__ */ new Map(),
+    acceptOfImage: `${[
+      supportWebp(ownerDocument) && "image/webp",
+      "image/svg+xml",
+      "image/*",
+      "*/*"
+    ].filter(Boolean).join(",")};q=0.8`,
+    requests,
+    drawImageCount: 0,
+    tasks: [],
+    features,
+    isEnable: (key) => {
+      var _a3, _b2;
+      if (key === "restoreScrollPosition") {
+        return typeof features === "boolean" ? false : (_a3 = features[key]) != null ? _a3 : false;
+      }
+      if (typeof features === "boolean") {
+        return features;
+      }
+      return (_b2 = features[key]) != null ? _b2 : true;
+    },
+    shadowRoots: []
+  });
+  context.log.time("wait until load");
+  await waitUntilLoad(node, { timeout: context.timeout, onWarn: context.log.warn });
+  context.log.timeEnd("wait until load");
+  const { width, height } = resolveBoundingBox(node, context);
+  context.width = width;
+  context.height = height;
+  return context;
+}
+function createStyleElement(ownerDocument) {
+  if (!ownerDocument)
+    return void 0;
+  const style = ownerDocument.createElement("style");
+  const cssText = style.ownerDocument.createTextNode(`
+.______background-clip--text {
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+`);
+  style.appendChild(cssText);
+  return style;
+}
+function resolveBoundingBox(node, context) {
+  let { width, height } = context;
+  if (isElementNode(node) && (!width || !height)) {
+    const box = node.getBoundingClientRect();
+    width = width || box.width || Number(node.getAttribute("width")) || 0;
+    height = height || box.height || Number(node.getAttribute("height")) || 0;
   }
-  return arr;
-}
-var styleProps = null;
-function getStyleProperties(options = {}) {
-  if (styleProps) {
-    return styleProps;
-  }
-  if (options.includeStyleProperties) {
-    styleProps = options.includeStyleProperties;
-    return styleProps;
-  }
-  styleProps = toArray(window.getComputedStyle(document.documentElement));
-  return styleProps;
-}
-function px(node, styleProperty) {
-  const win = node.ownerDocument.defaultView || window;
-  const val = win.getComputedStyle(node).getPropertyValue(styleProperty);
-  return val ? parseFloat(val.replace("px", "")) : 0;
-}
-function getNodeWidth(node) {
-  const leftBorder = px(node, "border-left-width");
-  const rightBorder = px(node, "border-right-width");
-  return node.clientWidth + leftBorder + rightBorder;
-}
-function getNodeHeight(node) {
-  const topBorder = px(node, "border-top-width");
-  const bottomBorder = px(node, "border-bottom-width");
-  return node.clientHeight + topBorder + bottomBorder;
-}
-function getImageSize(targetNode, options = {}) {
-  const width = options.width || getNodeWidth(targetNode);
-  const height = options.height || getNodeHeight(targetNode);
   return { width, height };
 }
-function getPixelRatio() {
-  let ratio;
-  let FINAL_PROCESS;
-  try {
-    FINAL_PROCESS = process;
-  } catch (e) {
-  }
-  const val = FINAL_PROCESS && FINAL_PROCESS.env ? FINAL_PROCESS.env.devicePixelRatio : null;
-  if (val) {
-    ratio = parseInt(val, 10);
-    if (Number.isNaN(ratio)) {
-      ratio = 1;
+async function imageToCanvas(image, context) {
+  const {
+    log,
+    timeout,
+    drawImageCount,
+    drawImageInterval
+  } = context;
+  log.time("image to canvas");
+  const loaded = await loadMedia(image, { timeout, onWarn: context.log.warn });
+  const { canvas, context2d } = createCanvas(image.ownerDocument, context);
+  const drawImage = () => {
+    try {
+      context2d == null ? void 0 : context2d.drawImage(loaded, 0, 0, canvas.width, canvas.height);
+    } catch (error) {
+      context.log.warn("Failed to drawImage", error);
     }
-  }
-  return ratio || window.devicePixelRatio || 1;
-}
-var canvasDimensionLimit = 16384;
-function checkCanvasDimensions(canvas) {
-  if (canvas.width > canvasDimensionLimit || canvas.height > canvasDimensionLimit) {
-    if (canvas.width > canvasDimensionLimit && canvas.height > canvasDimensionLimit) {
-      if (canvas.width > canvas.height) {
-        canvas.height *= canvasDimensionLimit / canvas.width;
-        canvas.width = canvasDimensionLimit;
-      } else {
-        canvas.width *= canvasDimensionLimit / canvas.height;
-        canvas.height = canvasDimensionLimit;
-      }
-    } else if (canvas.width > canvasDimensionLimit) {
-      canvas.height *= canvasDimensionLimit / canvas.width;
-      canvas.width = canvasDimensionLimit;
-    } else {
-      canvas.width *= canvasDimensionLimit / canvas.height;
-      canvas.height = canvasDimensionLimit;
-    }
-  }
-}
-function createImage(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      img.decode().then(() => {
-        requestAnimationFrame(() => resolve(img));
+  };
+  drawImage();
+  if (context.isEnable("fixSvgXmlDecode")) {
+    for (let i = 0; i < drawImageCount; i++) {
+      await new Promise((resolve) => {
+        setTimeout(() => {
+          context2d == null ? void 0 : context2d.clearRect(0, 0, canvas.width, canvas.height);
+          drawImage();
+          resolve();
+        }, i + drawImageInterval);
       });
-    };
-    img.onerror = reject;
-    img.crossOrigin = "anonymous";
-    img.decoding = "async";
-    img.src = url;
-  });
-}
-async function svgToDataURL(svg) {
-  return Promise.resolve().then(() => new XMLSerializer().serializeToString(svg)).then(encodeURIComponent).then((html) => `data:image/svg+xml;charset=utf-8,${html}`);
-}
-async function nodeToDataURL(node, width, height) {
-  const xmlns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(xmlns, "svg");
-  const foreignObject = document.createElementNS(xmlns, "foreignObject");
-  svg.setAttribute("width", `${width}`);
-  svg.setAttribute("height", `${height}`);
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  foreignObject.setAttribute("width", "100%");
-  foreignObject.setAttribute("height", "100%");
-  foreignObject.setAttribute("x", "0");
-  foreignObject.setAttribute("y", "0");
-  foreignObject.setAttribute("externalResourcesRequired", "true");
-  svg.appendChild(foreignObject);
-  foreignObject.appendChild(node);
-  return svgToDataURL(svg);
-}
-var isInstanceOfElement = (node, instance) => {
-  if (node instanceof instance)
-    return true;
-  const nodePrototype = Object.getPrototypeOf(node);
-  if (nodePrototype === null)
-    return false;
-  return nodePrototype.constructor.name === instance.name || isInstanceOfElement(nodePrototype, instance);
-};
-
-// node_modules/html-to-image/es/clone-pseudos.js
-function formatCSSText(style) {
-  const content = style.getPropertyValue("content");
-  return `${style.cssText} content: '${content.replace(/'|"/g, "")}';`;
-}
-function formatCSSProperties(style, options) {
-  return getStyleProperties(options).map((name) => {
-    const value = style.getPropertyValue(name);
-    const priority = style.getPropertyPriority(name);
-    return `${name}: ${value}${priority ? " !important" : ""};`;
-  }).join(" ");
-}
-function getPseudoElementStyle(className, pseudo, style, options) {
-  const selector = `.${className}:${pseudo}`;
-  const cssText = style.cssText ? formatCSSText(style) : formatCSSProperties(style, options);
-  return document.createTextNode(`${selector}{${cssText}}`);
-}
-function clonePseudoElement(nativeNode, clonedNode, pseudo, options) {
-  const style = window.getComputedStyle(nativeNode, pseudo);
-  const content = style.getPropertyValue("content");
-  if (content === "" || content === "none") {
-    return;
+    }
   }
-  const className = uuid();
-  try {
-    clonedNode.className = `${clonedNode.className} ${className}`;
-  } catch (err) {
-    return;
-  }
-  const styleElement = document.createElement("style");
-  styleElement.appendChild(getPseudoElementStyle(className, pseudo, style, options));
-  clonedNode.appendChild(styleElement);
+  context.drawImageCount = 0;
+  log.timeEnd("image to canvas");
+  return canvas;
 }
-function clonePseudoElements(nativeNode, clonedNode, options) {
-  clonePseudoElement(nativeNode, clonedNode, ":before", options);
-  clonePseudoElement(nativeNode, clonedNode, ":after", options);
-}
-
-// node_modules/html-to-image/es/mimes.js
-var WOFF = "application/font-woff";
-var JPEG = "image/jpeg";
-var mimes = {
-  woff: WOFF,
-  woff2: WOFF,
-  ttf: "application/font-truetype",
-  eot: "application/vnd.ms-fontobject",
-  png: "image/png",
-  jpg: JPEG,
-  jpeg: JPEG,
-  gif: "image/gif",
-  tiff: "image/tiff",
-  svg: "image/svg+xml",
-  webp: "image/webp"
-};
-function getExtension(url) {
-  const match = /\.([^./]*?)$/g.exec(url);
-  return match ? match[1] : "";
-}
-function getMimeType(url) {
-  const extension = getExtension(url).toLowerCase();
-  return mimes[extension] || "";
-}
-
-// node_modules/html-to-image/es/dataurl.js
-function getContentFromDataUrl(dataURL) {
-  return dataURL.split(/,/)[1];
-}
-function isDataUrl(url) {
-  return url.search(/^(data:)/) !== -1;
-}
-function makeDataUrl(content, mimeType) {
-  return `data:${mimeType};base64,${content}`;
-}
-async function fetchAsDataURL(url, init2, process2) {
-  const res = await fetch(url, init2);
-  if (res.status === 404) {
-    throw new Error(`Resource "${res.url}" not found`);
-  }
-  const blob = await res.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onloadend = () => {
-      try {
-        resolve(process2({ res, result: reader.result }));
-      } catch (error) {
-        reject(error);
+function createCanvas(ownerDocument, context) {
+  const { width, height, scale, backgroundColor, maximumCanvasSize: max } = context;
+  const canvas = ownerDocument.createElement("canvas");
+  canvas.width = Math.floor(width * scale);
+  canvas.height = Math.floor(height * scale);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  if (max) {
+    if (canvas.width > max || canvas.height > max) {
+      if (canvas.width > max && canvas.height > max) {
+        if (canvas.width > canvas.height) {
+          canvas.height *= max / canvas.width;
+          canvas.width = max;
+        } else {
+          canvas.width *= max / canvas.height;
+          canvas.height = max;
+        }
+      } else if (canvas.width > max) {
+        canvas.height *= max / canvas.width;
+        canvas.width = max;
+      } else {
+        canvas.width *= max / canvas.height;
+        canvas.height = max;
       }
-    };
-    reader.readAsDataURL(blob);
-  });
+    }
+  }
+  const context2d = canvas.getContext("2d");
+  if (context2d && backgroundColor) {
+    context2d.fillStyle = backgroundColor;
+    context2d.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  return { canvas, context2d };
 }
-var cache = {};
-function getCacheKey(url, contentType, includeQueryParams) {
-  let key = url.replace(/\?.*/, "");
-  if (includeQueryParams) {
-    key = url;
-  }
-  if (/ttf|otf|eot|woff2?/i.test(key)) {
-    key = key.replace(/.*\//, "");
-  }
-  return contentType ? `[${contentType}]${key}` : key;
-}
-async function resourceToDataURL(resourceUrl, contentType, options) {
-  const cacheKey = getCacheKey(resourceUrl, contentType, options.includeQueryParams);
-  if (cache[cacheKey] != null) {
-    return cache[cacheKey];
-  }
-  if (options.cacheBust) {
-    resourceUrl += (/\?/.test(resourceUrl) ? "&" : "?") + (/* @__PURE__ */ new Date()).getTime();
-  }
-  let dataURL;
-  try {
-    const content = await fetchAsDataURL(resourceUrl, options.fetchRequestInit, ({ res, result }) => {
-      if (!contentType) {
-        contentType = res.headers.get("Content-Type") || "";
+function cloneCanvas(canvas, context) {
+  if (canvas.ownerDocument) {
+    try {
+      const dataURL = canvas.toDataURL();
+      if (dataURL !== "data:,") {
+        return createImage(dataURL, canvas.ownerDocument);
       }
-      return getContentFromDataUrl(result);
-    });
-    dataURL = makeDataUrl(content, contentType);
+    } catch (error) {
+      context.log.warn("Failed to clone canvas", error);
+    }
+  }
+  const cloned = canvas.cloneNode(false);
+  const ctx = canvas.getContext("2d");
+  const clonedCtx = cloned.getContext("2d");
+  try {
+    if (ctx && clonedCtx) {
+      clonedCtx.putImageData(
+        ctx.getImageData(0, 0, canvas.width, canvas.height),
+        0,
+        0
+      );
+    }
+    return cloned;
   } catch (error) {
-    dataURL = options.imagePlaceholder || "";
-    let msg = `Failed to fetch resource: ${resourceUrl}`;
-    if (error) {
-      msg = typeof error === "string" ? error : error.message;
-    }
-    if (msg) {
-      console.warn(msg);
-    }
+    context.log.warn("Failed to clone canvas", error);
   }
-  cache[cacheKey] = dataURL;
-  return dataURL;
+  return cloned;
 }
-
-// node_modules/html-to-image/es/clone-node.js
-async function cloneCanvasElement(canvas) {
-  const dataURL = canvas.toDataURL();
-  if (dataURL === "data:,") {
-    return canvas.cloneNode(false);
-  }
-  return createImage(dataURL);
-}
-async function cloneVideoElement(video, options) {
-  if (video.currentSrc) {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    canvas.width = video.clientWidth;
-    canvas.height = video.clientHeight;
-    ctx === null || ctx === void 0 ? void 0 : ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataURL2 = canvas.toDataURL();
-    return createImage(dataURL2);
-  }
-  const poster = video.poster;
-  const contentType = getMimeType(poster);
-  const dataURL = await resourceToDataURL(poster, contentType, options);
-  return createImage(dataURL);
-}
-async function cloneIFrameElement(iframe, options) {
-  var _a;
+function cloneIframe(iframe, context) {
+  var _a2;
   try {
-    if ((_a = iframe === null || iframe === void 0 ? void 0 : iframe.contentDocument) === null || _a === void 0 ? void 0 : _a.body) {
-      return await cloneNode(iframe.contentDocument.body, options, true);
+    if ((_a2 = iframe == null ? void 0 : iframe.contentDocument) == null ? void 0 : _a2.body) {
+      return cloneNode(iframe.contentDocument.body, context);
     }
-  } catch (_b) {
+  } catch (error) {
+    context.log.warn("Failed to clone iframe", error);
   }
   return iframe.cloneNode(false);
 }
-async function cloneSingleNode(node, options) {
-  if (isInstanceOfElement(node, HTMLCanvasElement)) {
-    return cloneCanvasElement(node);
+function cloneImage(image) {
+  const cloned = image.cloneNode(false);
+  if (image.currentSrc && image.currentSrc !== image.src) {
+    cloned.src = image.currentSrc;
+    cloned.srcset = "";
   }
-  if (isInstanceOfElement(node, HTMLVideoElement)) {
-    return cloneVideoElement(node, options);
+  if (cloned.loading === "lazy") {
+    cloned.loading = "eager";
   }
-  if (isInstanceOfElement(node, HTMLIFrameElement)) {
-    return cloneIFrameElement(node, options);
-  }
-  return node.cloneNode(isSVGElement(node));
+  return cloned;
 }
-var isSlotElement = (node) => node.tagName != null && node.tagName.toUpperCase() === "SLOT";
-var isSVGElement = (node) => node.tagName != null && node.tagName.toUpperCase() === "SVG";
-async function cloneChildren(nativeNode, clonedNode, options) {
-  var _a, _b;
-  if (isSVGElement(clonedNode)) {
-    return clonedNode;
+async function cloneVideo(video, context) {
+  if (video.ownerDocument && !video.currentSrc && video.poster) {
+    return createImage(video.poster, video.ownerDocument);
   }
-  let children = [];
-  if (isSlotElement(nativeNode) && nativeNode.assignedNodes) {
-    children = toArray(nativeNode.assignedNodes());
-  } else if (isInstanceOfElement(nativeNode, HTMLIFrameElement) && ((_a = nativeNode.contentDocument) === null || _a === void 0 ? void 0 : _a.body)) {
-    children = toArray(nativeNode.contentDocument.body.childNodes);
-  } else {
-    children = toArray(((_b = nativeNode.shadowRoot) !== null && _b !== void 0 ? _b : nativeNode).childNodes);
+  const cloned = video.cloneNode(false);
+  cloned.crossOrigin = "anonymous";
+  if (video.currentSrc && video.currentSrc !== video.src) {
+    cloned.src = video.currentSrc;
   }
-  if (children.length === 0 || isInstanceOfElement(nativeNode, HTMLVideoElement)) {
-    return clonedNode;
-  }
-  await children.reduce((deferred, child) => deferred.then(() => cloneNode(child, options)).then((clonedChild) => {
-    if (clonedChild) {
-      clonedNode.appendChild(clonedChild);
+  const ownerDocument = cloned.ownerDocument;
+  if (ownerDocument) {
+    let canPlay = true;
+    await loadMedia(cloned, { onError: () => canPlay = false, onWarn: context.log.warn });
+    if (!canPlay) {
+      if (video.poster) {
+        return createImage(video.poster, video.ownerDocument);
+      }
+      return cloned;
     }
-  }), Promise.resolve());
-  return clonedNode;
+    cloned.currentTime = video.currentTime;
+    await new Promise((resolve) => {
+      cloned.addEventListener("seeked", resolve, { once: true });
+    });
+    const canvas = ownerDocument.createElement("canvas");
+    canvas.width = video.offsetWidth;
+    canvas.height = video.offsetHeight;
+    try {
+      const ctx = canvas.getContext("2d");
+      if (ctx)
+        ctx.drawImage(cloned, 0, 0, canvas.width, canvas.height);
+    } catch (error) {
+      context.log.warn("Failed to clone video", error);
+      if (video.poster) {
+        return createImage(video.poster, video.ownerDocument);
+      }
+      return cloned;
+    }
+    return cloneCanvas(canvas, context);
+  }
+  return cloned;
 }
-function cloneCSSStyle(nativeNode, clonedNode, options) {
-  const targetStyle = clonedNode.style;
-  if (!targetStyle) {
+function cloneElement(node, context) {
+  if (isCanvasElement(node)) {
+    return cloneCanvas(node, context);
+  }
+  if (isIFrameElement(node)) {
+    return cloneIframe(node, context);
+  }
+  if (isImageElement(node)) {
+    return cloneImage(node);
+  }
+  if (isVideoElement(node)) {
+    return cloneVideo(node, context);
+  }
+  return node.cloneNode(false);
+}
+function getSandBox(context) {
+  let sandbox = context.sandbox;
+  if (!sandbox) {
+    const { ownerDocument } = context;
+    try {
+      if (ownerDocument) {
+        sandbox = ownerDocument.createElement("iframe");
+        sandbox.id = `__SANDBOX__${uuid()}`;
+        sandbox.width = "0";
+        sandbox.height = "0";
+        sandbox.style.visibility = "hidden";
+        sandbox.style.position = "fixed";
+        ownerDocument.body.appendChild(sandbox);
+        sandbox.srcdoc = '<!DOCTYPE html><meta charset="UTF-8"><title></title><body>';
+        context.sandbox = sandbox;
+      }
+    } catch (error) {
+      context.log.warn("Failed to getSandBox", error);
+    }
+  }
+  return sandbox;
+}
+var ignoredStyles = [
+  "width",
+  "height",
+  "-webkit-text-fill-color"
+];
+var includedAttributes = [
+  "stroke",
+  "fill"
+];
+function getDefaultStyle(node, pseudoElement, context) {
+  const { defaultComputedStyles } = context;
+  const nodeName = node.nodeName.toLowerCase();
+  const isSvgNode = isSVGElementNode(node) && nodeName !== "svg";
+  const attributes = isSvgNode ? includedAttributes.map((name) => [name, node.getAttribute(name)]).filter(([, value]) => value !== null) : [];
+  const key = [
+    isSvgNode && "svg",
+    nodeName,
+    attributes.map((name, value) => `${name}=${value}`).join(","),
+    pseudoElement
+  ].filter(Boolean).join(":");
+  if (defaultComputedStyles.has(key))
+    return defaultComputedStyles.get(key);
+  const sandbox = getSandBox(context);
+  const sandboxWindow = sandbox == null ? void 0 : sandbox.contentWindow;
+  if (!sandboxWindow)
+    return /* @__PURE__ */ new Map();
+  const sandboxDocument = sandboxWindow == null ? void 0 : sandboxWindow.document;
+  let root;
+  let el;
+  if (isSvgNode) {
+    root = sandboxDocument.createElementNS(XMLNS, "svg");
+    el = root.ownerDocument.createElementNS(root.namespaceURI, nodeName);
+    attributes.forEach(([name, value]) => {
+      el.setAttributeNS(null, name, value);
+    });
+    root.appendChild(el);
+  } else {
+    root = el = sandboxDocument.createElement(nodeName);
+  }
+  el.textContent = " ";
+  sandboxDocument.body.appendChild(root);
+  const computedStyle = sandboxWindow.getComputedStyle(el, pseudoElement);
+  const styles = /* @__PURE__ */ new Map();
+  for (let len = computedStyle.length, i = 0; i < len; i++) {
+    const name = computedStyle.item(i);
+    if (ignoredStyles.includes(name))
+      continue;
+    styles.set(name, computedStyle.getPropertyValue(name));
+  }
+  sandboxDocument.body.removeChild(root);
+  defaultComputedStyles.set(key, styles);
+  return styles;
+}
+function getDiffStyle(style, defaultStyle, includeStyleProperties) {
+  var _a2;
+  const diffStyle = /* @__PURE__ */ new Map();
+  const prefixs = [];
+  const prefixTree = /* @__PURE__ */ new Map();
+  if (includeStyleProperties) {
+    for (const name of includeStyleProperties) {
+      applyTo(name);
+    }
+  } else {
+    for (let len = style.length, i = 0; i < len; i++) {
+      const name = style.item(i);
+      applyTo(name);
+    }
+  }
+  for (let len = prefixs.length, i = 0; i < len; i++) {
+    (_a2 = prefixTree.get(prefixs[i])) == null ? void 0 : _a2.forEach((value, name) => diffStyle.set(name, value));
+  }
+  function applyTo(name) {
+    const value = style.getPropertyValue(name);
+    const priority = style.getPropertyPriority(name);
+    const subIndex = name.lastIndexOf("-");
+    const prefix = subIndex > -1 ? name.substring(0, subIndex) : void 0;
+    if (prefix) {
+      let map = prefixTree.get(prefix);
+      if (!map) {
+        map = /* @__PURE__ */ new Map();
+        prefixTree.set(prefix, map);
+      }
+      map.set(name, [value, priority]);
+    }
+    if (defaultStyle.get(name) === value && !priority)
+      return;
+    if (prefix) {
+      prefixs.push(prefix);
+    } else {
+      diffStyle.set(name, [value, priority]);
+    }
+  }
+  return diffStyle;
+}
+function copyCssStyles(node, cloned, isRoot, context) {
+  var _a2, _b, _c, _d;
+  const { ownerWindow, includeStyleProperties, currentParentNodeStyle } = context;
+  const clonedStyle = cloned.style;
+  const computedStyle = ownerWindow.getComputedStyle(node);
+  const defaultStyle = getDefaultStyle(node, null, context);
+  currentParentNodeStyle == null ? void 0 : currentParentNodeStyle.forEach((_, key) => {
+    defaultStyle.delete(key);
+  });
+  const style = getDiffStyle(computedStyle, defaultStyle, includeStyleProperties);
+  style.delete("transition-property");
+  style.delete("all");
+  style.delete("d");
+  style.delete("content");
+  if (isRoot) {
+    style.delete("margin-top");
+    style.delete("margin-right");
+    style.delete("margin-bottom");
+    style.delete("margin-left");
+    style.delete("margin-block-start");
+    style.delete("margin-block-end");
+    style.delete("margin-inline-start");
+    style.delete("margin-inline-end");
+    style.set("box-sizing", ["border-box", ""]);
+  }
+  if (((_a2 = style.get("background-clip")) == null ? void 0 : _a2[0]) === "text") {
+    cloned.classList.add("______background-clip--text");
+  }
+  if (IN_CHROME) {
+    if (!style.has("font-kerning"))
+      style.set("font-kerning", ["normal", ""]);
+    if ((((_b = style.get("overflow-x")) == null ? void 0 : _b[0]) === "hidden" || ((_c = style.get("overflow-y")) == null ? void 0 : _c[0]) === "hidden") && ((_d = style.get("text-overflow")) == null ? void 0 : _d[0]) === "ellipsis" && node.scrollWidth === node.clientWidth) {
+      style.set("text-overflow", ["clip", ""]);
+    }
+  }
+  for (let len = clonedStyle.length, i = 0; i < len; i++) {
+    clonedStyle.removeProperty(clonedStyle.item(i));
+  }
+  style.forEach(([value, priority], name) => {
+    clonedStyle.setProperty(name, value, priority);
+  });
+  return style;
+}
+function copyInputValue(node, cloned) {
+  if (isTextareaElement(node) || isInputElement(node) || isSelectElement(node)) {
+    cloned.setAttribute("value", node.value);
+  }
+}
+var pseudoClasses = [
+  "::before",
+  "::after"
+  // '::placeholder', TODO
+];
+var scrollbarPseudoClasses = [
+  "::-webkit-scrollbar",
+  "::-webkit-scrollbar-button",
+  // '::-webkit-scrollbar:horizontal', TODO
+  "::-webkit-scrollbar-thumb",
+  "::-webkit-scrollbar-track",
+  "::-webkit-scrollbar-track-piece",
+  // '::-webkit-scrollbar:vertical', TODO
+  "::-webkit-scrollbar-corner",
+  "::-webkit-resizer"
+];
+function copyPseudoClass(node, cloned, copyScrollbar, context, addWordToFontFamilies) {
+  const { ownerWindow, svgStyleElement, svgStyles, currentNodeStyle } = context;
+  if (!svgStyleElement || !ownerWindow)
+    return;
+  function copyBy(pseudoClass) {
+    var _a2;
+    const computedStyle = ownerWindow.getComputedStyle(node, pseudoClass);
+    let content = computedStyle.getPropertyValue("content");
+    if (!content || content === "none")
+      return;
+    addWordToFontFamilies == null ? void 0 : addWordToFontFamilies(content);
+    content = content.replace(/(')|(")|(counter\(.+\))/g, "");
+    const klasses = [uuid()];
+    const defaultStyle = getDefaultStyle(node, pseudoClass, context);
+    currentNodeStyle == null ? void 0 : currentNodeStyle.forEach((_, key) => {
+      defaultStyle.delete(key);
+    });
+    const style = getDiffStyle(computedStyle, defaultStyle, context.includeStyleProperties);
+    style.delete("content");
+    style.delete("-webkit-locale");
+    if (((_a2 = style.get("background-clip")) == null ? void 0 : _a2[0]) === "text") {
+      cloned.classList.add("______background-clip--text");
+    }
+    const cloneStyle = [
+      `content: '${content}';`
+    ];
+    style.forEach(([value, priority], name) => {
+      cloneStyle.push(`${name}: ${value}${priority ? " !important" : ""};`);
+    });
+    if (cloneStyle.length === 1)
+      return;
+    try {
+      cloned.className = [cloned.className, ...klasses].join(" ");
+    } catch (err) {
+      context.log.warn("Failed to copyPseudoClass", err);
+      return;
+    }
+    const cssText = cloneStyle.join("\n  ");
+    let allClasses = svgStyles.get(cssText);
+    if (!allClasses) {
+      allClasses = [];
+      svgStyles.set(cssText, allClasses);
+    }
+    allClasses.push(`.${klasses[0]}${pseudoClass}`);
+  }
+  pseudoClasses.forEach(copyBy);
+  if (copyScrollbar)
+    scrollbarPseudoClasses.forEach(copyBy);
+}
+var excludeParentNodes = /* @__PURE__ */ new Set([
+  "symbol"
+  // test/fixtures/svg.symbol.html
+]);
+async function appendChildNode(node, cloned, child, context, addWordToFontFamilies) {
+  if (isElementNode(child) && (isStyleElement(child) || isScriptElement(child)))
+    return;
+  if (context.filter && !context.filter(child))
+    return;
+  if (excludeParentNodes.has(cloned.nodeName) || excludeParentNodes.has(child.nodeName)) {
+    context.currentParentNodeStyle = void 0;
+  } else {
+    context.currentParentNodeStyle = context.currentNodeStyle;
+  }
+  const childCloned = await cloneNode(child, context, false, addWordToFontFamilies);
+  if (context.isEnable("restoreScrollPosition")) {
+    restoreScrollPosition(node, childCloned);
+  }
+  cloned.appendChild(childCloned);
+}
+async function cloneChildNodes(node, cloned, context, addWordToFontFamilies) {
+  var _a2;
+  let firstChild = node.firstChild;
+  if (isElementNode(node)) {
+    if (node.shadowRoot) {
+      firstChild = (_a2 = node.shadowRoot) == null ? void 0 : _a2.firstChild;
+      context.shadowRoots.push(node.shadowRoot);
+    }
+  }
+  for (let child = firstChild; child; child = child.nextSibling) {
+    if (isCommentNode(child))
+      continue;
+    if (isElementNode(child) && isSlotElement(child) && typeof child.assignedNodes === "function") {
+      const nodes = child.assignedNodes();
+      for (let i = 0; i < nodes.length; i++) {
+        await appendChildNode(node, cloned, nodes[i], context, addWordToFontFamilies);
+      }
+    } else {
+      await appendChildNode(node, cloned, child, context, addWordToFontFamilies);
+    }
+  }
+}
+function restoreScrollPosition(node, chlidCloned) {
+  if (!isHTMLElementNode(node) || !isHTMLElementNode(chlidCloned))
+    return;
+  const { scrollTop, scrollLeft } = node;
+  if (!scrollTop && !scrollLeft) {
     return;
   }
-  const sourceStyle = window.getComputedStyle(nativeNode);
-  if (sourceStyle.cssText) {
-    targetStyle.cssText = sourceStyle.cssText;
-    targetStyle.transformOrigin = sourceStyle.transformOrigin;
-  } else {
-    getStyleProperties(options).forEach((name) => {
-      let value = sourceStyle.getPropertyValue(name);
-      if (name === "font-size" && value.endsWith("px")) {
-        const reducedFont = Math.floor(parseFloat(value.substring(0, value.length - 2))) - 0.1;
-        value = `${reducedFont}px`;
+  const { transform } = chlidCloned.style;
+  const matrix = new DOMMatrix(transform);
+  const { a, b, c, d } = matrix;
+  matrix.a = 1;
+  matrix.b = 0;
+  matrix.c = 0;
+  matrix.d = 1;
+  matrix.translateSelf(-scrollLeft, -scrollTop);
+  matrix.a = a;
+  matrix.b = b;
+  matrix.c = c;
+  matrix.d = d;
+  chlidCloned.style.transform = matrix.toString();
+}
+function applyCssStyleWithOptions(cloned, context) {
+  const { backgroundColor, width, height, style: styles } = context;
+  const clonedStyle = cloned.style;
+  if (backgroundColor)
+    clonedStyle.setProperty("background-color", backgroundColor, "important");
+  if (width)
+    clonedStyle.setProperty("width", `${width}px`, "important");
+  if (height)
+    clonedStyle.setProperty("height", `${height}px`, "important");
+  if (styles) {
+    for (const name in styles) clonedStyle[name] = styles[name];
+  }
+}
+var NORMAL_ATTRIBUTE_RE = /^[\w-:]+$/;
+async function cloneNode(node, context, isRoot = false, addWordToFontFamilies) {
+  var _a2, _b, _c, _d;
+  const { ownerDocument, ownerWindow, fontFamilies, onCloneEachNode } = context;
+  if (ownerDocument && isTextNode(node)) {
+    if (addWordToFontFamilies && /\S/.test(node.data)) {
+      addWordToFontFamilies(node.data);
+    }
+    return ownerDocument.createTextNode(node.data);
+  }
+  if (ownerDocument && ownerWindow && isElementNode(node) && (isHTMLElementNode(node) || isSVGElementNode(node))) {
+    const cloned2 = await cloneElement(node, context);
+    if (context.isEnable("removeAbnormalAttributes")) {
+      const names = cloned2.getAttributeNames();
+      for (let len = names.length, i = 0; i < len; i++) {
+        const name = names[i];
+        if (!NORMAL_ATTRIBUTE_RE.test(name)) {
+          cloned2.removeAttribute(name);
+        }
       }
-      if (isInstanceOfElement(nativeNode, HTMLIFrameElement) && name === "display" && value === "inline") {
-        value = "block";
+    }
+    const style = context.currentNodeStyle = copyCssStyles(node, cloned2, isRoot, context);
+    if (isRoot)
+      applyCssStyleWithOptions(cloned2, context);
+    let copyScrollbar = false;
+    if (context.isEnable("copyScrollbar")) {
+      const overflow = [
+        (_a2 = style.get("overflow-x")) == null ? void 0 : _a2[0],
+        (_b = style.get("overflow-y")) == null ? void 0 : _b[0]
+      ];
+      copyScrollbar = overflow.includes("scroll") || (overflow.includes("auto") || overflow.includes("overlay")) && (node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth);
+    }
+    const textTransform = (_c = style.get("text-transform")) == null ? void 0 : _c[0];
+    const families = splitFontFamily((_d = style.get("font-family")) == null ? void 0 : _d[0]);
+    const addWordToFontFamilies2 = families ? (word) => {
+      if (textTransform === "uppercase") {
+        word = word.toUpperCase();
+      } else if (textTransform === "lowercase") {
+        word = word.toLowerCase();
+      } else if (textTransform === "capitalize") {
+        word = word[0].toUpperCase() + word.substring(1);
       }
-      if (name === "d" && clonedNode.getAttribute("d")) {
-        value = `path(${clonedNode.getAttribute("d")})`;
+      families.forEach((family) => {
+        let fontFamily = fontFamilies.get(family);
+        if (!fontFamily) {
+          fontFamilies.set(family, fontFamily = /* @__PURE__ */ new Set());
+        }
+        word.split("").forEach((text) => fontFamily.add(text));
+      });
+    } : void 0;
+    copyPseudoClass(
+      node,
+      cloned2,
+      copyScrollbar,
+      context,
+      addWordToFontFamilies2
+    );
+    copyInputValue(node, cloned2);
+    if (!isVideoElement(node)) {
+      await cloneChildNodes(
+        node,
+        cloned2,
+        context,
+        addWordToFontFamilies2
+      );
+    }
+    await (onCloneEachNode == null ? void 0 : onCloneEachNode(cloned2));
+    return cloned2;
+  }
+  const cloned = node.cloneNode(false);
+  await cloneChildNodes(node, cloned, context);
+  await (onCloneEachNode == null ? void 0 : onCloneEachNode(cloned));
+  return cloned;
+}
+function destroyContext(context) {
+  context.ownerDocument = void 0;
+  context.ownerWindow = void 0;
+  context.svgStyleElement = void 0;
+  context.svgDefsElement = void 0;
+  context.svgStyles.clear();
+  context.defaultComputedStyles.clear();
+  if (context.sandbox) {
+    try {
+      context.sandbox.remove();
+    } catch (err) {
+      context.log.warn("Failed to destroyContext", err);
+    }
+    context.sandbox = void 0;
+  }
+  context.workers = [];
+  context.fontFamilies.clear();
+  context.fontCssTexts.clear();
+  context.requests.clear();
+  context.tasks = [];
+  context.shadowRoots = [];
+}
+function baseFetch(options) {
+  const _a2 = options, { url, timeout, responseType } = _a2, requestInit = __objRest(_a2, ["url", "timeout", "responseType"]);
+  const controller = new AbortController();
+  const timer = timeout ? setTimeout(() => controller.abort(), timeout) : void 0;
+  return fetch(url, __spreadValues({ signal: controller.signal }, requestInit)).then((response) => {
+    if (!response.ok) {
+      throw new Error("Failed fetch, not 2xx response", { cause: response });
+    }
+    switch (responseType) {
+      case "arrayBuffer":
+        return response.arrayBuffer();
+      case "dataUrl":
+        return response.blob().then(blobToDataUrl);
+      case "text":
+      default:
+        return response.text();
+    }
+  }).finally(() => clearTimeout(timer));
+}
+function contextFetch(context, options) {
+  const { url: rawUrl, requestType = "text", responseType = "text", imageDom } = options;
+  let url = rawUrl;
+  const {
+    timeout,
+    acceptOfImage,
+    requests,
+    fetchFn,
+    fetch: {
+      requestInit,
+      bypassingCache,
+      placeholderImage
+    },
+    font,
+    workers,
+    fontFamilies
+  } = context;
+  if (requestType === "image" && (IN_SAFARI || IN_FIREFOX)) {
+    context.drawImageCount++;
+  }
+  let request = requests.get(rawUrl);
+  if (!request) {
+    if (bypassingCache) {
+      if (bypassingCache instanceof RegExp && bypassingCache.test(url)) {
+        url += (/\?/.test(url) ? "&" : "?") + (/* @__PURE__ */ new Date()).getTime();
       }
-      targetStyle.setProperty(name, value, sourceStyle.getPropertyPriority(name));
+    }
+    const canFontMinify = requestType.startsWith("font") && font && font.minify;
+    const fontTexts = /* @__PURE__ */ new Set();
+    if (canFontMinify) {
+      const families = requestType.split(";")[1].split(",");
+      families.forEach((family) => {
+        if (!fontFamilies.has(family))
+          return;
+        fontFamilies.get(family).forEach((text) => fontTexts.add(text));
+      });
+    }
+    const needFontMinify = canFontMinify && fontTexts.size;
+    const baseFetchOptions = __spreadValues({
+      url,
+      timeout,
+      responseType: needFontMinify ? "arrayBuffer" : responseType,
+      headers: requestType === "image" ? { accept: acceptOfImage } : void 0
+    }, requestInit);
+    request = {
+      type: requestType,
+      resolve: void 0,
+      reject: void 0,
+      response: null
+    };
+    request.response = (async () => {
+      if (fetchFn && requestType === "image") {
+        const result = await fetchFn(rawUrl);
+        if (result)
+          return result;
+      }
+      if (!IN_SAFARI && rawUrl.startsWith("http") && workers.length) {
+        return new Promise((resolve, reject) => {
+          const worker = workers[requests.size & workers.length - 1];
+          worker.postMessage(__spreadValues({ rawUrl }, baseFetchOptions));
+          request.resolve = resolve;
+          request.reject = reject;
+        });
+      }
+      return baseFetch(baseFetchOptions);
+    })().catch((error) => {
+      requests.delete(rawUrl);
+      if (requestType === "image" && placeholderImage) {
+        context.log.warn("Failed to fetch image base64, trying to use placeholder image", url);
+        return typeof placeholderImage === "string" ? placeholderImage : placeholderImage(imageDom);
+      }
+      throw error;
     });
+    requests.set(rawUrl, request);
   }
+  return request.response;
 }
-function cloneInputValue(nativeNode, clonedNode) {
-  if (isInstanceOfElement(nativeNode, HTMLTextAreaElement)) {
-    clonedNode.innerHTML = nativeNode.value;
-  }
-  if (isInstanceOfElement(nativeNode, HTMLInputElement)) {
-    clonedNode.setAttribute("value", nativeNode.value);
-  }
-}
-function cloneSelectValue(nativeNode, clonedNode) {
-  if (isInstanceOfElement(nativeNode, HTMLSelectElement)) {
-    const clonedSelect = clonedNode;
-    const selectedOption = Array.from(clonedSelect.children).find((child) => nativeNode.value === child.getAttribute("value"));
-    if (selectedOption) {
-      selectedOption.setAttribute("selected", "");
+async function replaceCssUrlToDataUrl(cssText, baseUrl, context, isImage) {
+  if (!hasCssUrl(cssText))
+    return cssText;
+  for (const [rawUrl, url] of parseCssUrls(cssText, baseUrl)) {
+    try {
+      const dataUrl = await contextFetch(
+        context,
+        {
+          url,
+          requestType: isImage ? "image" : "text",
+          responseType: "dataUrl"
+        }
+      );
+      cssText = cssText.replace(toRE(rawUrl), `$1${dataUrl}$3`);
+    } catch (error) {
+      context.log.warn("Failed to fetch css data url", rawUrl, error);
     }
-  }
-}
-function decorate(nativeNode, clonedNode, options) {
-  if (isInstanceOfElement(clonedNode, Element)) {
-    cloneCSSStyle(nativeNode, clonedNode, options);
-    clonePseudoElements(nativeNode, clonedNode, options);
-    cloneInputValue(nativeNode, clonedNode);
-    cloneSelectValue(nativeNode, clonedNode);
-  }
-  return clonedNode;
-}
-async function ensureSVGSymbols(clone, options) {
-  const uses = clone.querySelectorAll ? clone.querySelectorAll("use") : [];
-  if (uses.length === 0) {
-    return clone;
-  }
-  const processedDefs = {};
-  for (let i = 0; i < uses.length; i++) {
-    const use = uses[i];
-    const id = use.getAttribute("xlink:href");
-    if (id) {
-      const exist = clone.querySelector(id);
-      const definition = document.querySelector(id);
-      if (!exist && definition && !processedDefs[id]) {
-        processedDefs[id] = await cloneNode(definition, options, true);
-      }
-    }
-  }
-  const nodes = Object.values(processedDefs);
-  if (nodes.length) {
-    const ns = "http://www.w3.org/1999/xhtml";
-    const svg = document.createElementNS(ns, "svg");
-    svg.setAttribute("xmlns", ns);
-    svg.style.position = "absolute";
-    svg.style.width = "0";
-    svg.style.height = "0";
-    svg.style.overflow = "hidden";
-    svg.style.display = "none";
-    const defs = document.createElementNS(ns, "defs");
-    svg.appendChild(defs);
-    for (let i = 0; i < nodes.length; i++) {
-      defs.appendChild(nodes[i]);
-    }
-    clone.appendChild(svg);
-  }
-  return clone;
-}
-async function cloneNode(node, options, isRoot) {
-  if (!isRoot && options.filter && !options.filter(node)) {
-    return null;
-  }
-  return Promise.resolve(node).then((clonedNode) => cloneSingleNode(clonedNode, options)).then((clonedNode) => cloneChildren(node, clonedNode, options)).then((clonedNode) => decorate(node, clonedNode, options)).then((clonedNode) => ensureSVGSymbols(clonedNode, options));
-}
-
-// node_modules/html-to-image/es/embed-resources.js
-var URL_REGEX = /url\((['"]?)([^'"]+?)\1\)/g;
-var URL_WITH_FORMAT_REGEX = /url\([^)]+\)\s*format\((["']?)([^"']+)\1\)/g;
-var FONT_SRC_REGEX = /src:\s*(?:url\([^)]+\)\s*format\([^)]+\)[,;]\s*)+/g;
-function toRegex(url) {
-  const escaped = url.replace(/([.*+?^${}()|\[\]\/\\])/g, "\\$1");
-  return new RegExp(`(url\\(['"]?)(${escaped})(['"]?\\))`, "g");
-}
-function parseURLs(cssText) {
-  const urls = [];
-  cssText.replace(URL_REGEX, (raw, quotation, url) => {
-    urls.push(url);
-    return raw;
-  });
-  return urls.filter((url) => !isDataUrl(url));
-}
-async function embed(cssText, resourceURL, baseURL, options, getContentFromUrl) {
-  try {
-    const resolvedURL = baseURL ? resolveUrl(resourceURL, baseURL) : resourceURL;
-    const contentType = getMimeType(resourceURL);
-    let dataURL;
-    if (getContentFromUrl) {
-      const content = await getContentFromUrl(resolvedURL);
-      dataURL = makeDataUrl(content, contentType);
-    } else {
-      dataURL = await resourceToDataURL(resolvedURL, contentType, options);
-    }
-    return cssText.replace(toRegex(resourceURL), `$1${dataURL}$3`);
-  } catch (error) {
   }
   return cssText;
 }
-function filterPreferredFontFormat(str, { preferredFontFormat }) {
-  return !preferredFontFormat ? str : str.replace(FONT_SRC_REGEX, (match) => {
-    while (true) {
-      const [src, , format] = URL_WITH_FORMAT_REGEX.exec(match) || [];
-      if (!format) {
-        return "";
-      }
-      if (format === preferredFontFormat) {
-        return `src: ${src};`;
-      }
+function hasCssUrl(cssText) {
+  return /url\((['"]?)([^'"]+?)\1\)/.test(cssText);
+}
+var URL_RE = /url\((['"]?)([^'"]+?)\1\)/g;
+function parseCssUrls(cssText, baseUrl) {
+  const result = [];
+  cssText.replace(URL_RE, (raw, quotation, url) => {
+    result.push([url, resolveUrl(url, baseUrl)]);
+    return raw;
+  });
+  return result.filter(([url]) => !isDataUrl(url));
+}
+function toRE(url) {
+  const escaped = url.replace(/([.*+?^${}()|\[\]\/\\])/g, "\\$1");
+  return new RegExp(`(url\\(['"]?)(${escaped})(['"]?\\))`, "g");
+}
+var properties = [
+  "background-image",
+  "border-image-source",
+  "-webkit-border-image",
+  "-webkit-mask-image",
+  "list-style-image"
+];
+function embedCssStyleImage(style, context) {
+  return properties.map((property) => {
+    const value = style.getPropertyValue(property);
+    if (!value || value === "none") {
+      return null;
     }
+    if (IN_SAFARI || IN_FIREFOX) {
+      context.drawImageCount++;
+    }
+    return replaceCssUrlToDataUrl(value, null, context, true).then((newValue) => {
+      if (!newValue || value === newValue)
+        return;
+      style.setProperty(
+        property,
+        newValue,
+        style.getPropertyPriority(property)
+      );
+    });
+  }).filter(Boolean);
+}
+function embedImageElement(cloned, context) {
+  if (isImageElement(cloned)) {
+    const originalSrc = cloned.currentSrc || cloned.src;
+    if (!isDataUrl(originalSrc)) {
+      return [
+        contextFetch(context, {
+          url: originalSrc,
+          imageDom: cloned,
+          requestType: "image",
+          responseType: "dataUrl"
+        }).then((url) => {
+          if (!url)
+            return;
+          cloned.srcset = "";
+          cloned.dataset.originalSrc = originalSrc;
+          cloned.src = url || "";
+        })
+      ];
+    }
+    if (IN_SAFARI || IN_FIREFOX) {
+      context.drawImageCount++;
+    }
+  } else if (isSVGElementNode(cloned) && !isDataUrl(cloned.href.baseVal)) {
+    const originalSrc = cloned.href.baseVal;
+    return [
+      contextFetch(context, {
+        url: originalSrc,
+        imageDom: cloned,
+        requestType: "image",
+        responseType: "dataUrl"
+      }).then((url) => {
+        if (!url)
+          return;
+        cloned.dataset.originalSrc = originalSrc;
+        cloned.href.baseVal = url || "";
+      })
+    ];
+  }
+  return [];
+}
+function embedSvgUse(cloned, context) {
+  var _a2;
+  const { ownerDocument, svgDefsElement } = context;
+  const href = (_a2 = cloned.getAttribute("href")) != null ? _a2 : cloned.getAttribute("xlink:href");
+  if (!href)
+    return [];
+  const [svgUrl, id] = href.split("#");
+  if (id) {
+    const query = `#${id}`;
+    const definition = context.shadowRoots.reduce(
+      (res, root) => {
+        return res != null ? res : root.querySelector(`svg ${query}`);
+      },
+      ownerDocument == null ? void 0 : ownerDocument.querySelector(`svg ${query}`)
+    );
+    if (svgUrl) {
+      cloned.setAttribute("href", query);
+    }
+    if (svgDefsElement == null ? void 0 : svgDefsElement.querySelector(query))
+      return [];
+    if (definition) {
+      svgDefsElement == null ? void 0 : svgDefsElement.appendChild(definition.cloneNode(true));
+      return [];
+    } else if (svgUrl) {
+      return [
+        contextFetch(context, {
+          url: svgUrl,
+          responseType: "text"
+        }).then((svgData) => {
+          svgDefsElement == null ? void 0 : svgDefsElement.insertAdjacentHTML("beforeend", svgData);
+        })
+      ];
+    }
+  }
+  return [];
+}
+function embedNode(cloned, context) {
+  const { tasks } = context;
+  if (isElementNode(cloned)) {
+    if (isImageElement(cloned) || isSVGImageElementNode(cloned)) {
+      tasks.push(...embedImageElement(cloned, context));
+    }
+    if (isSVGUseElementNode(cloned)) {
+      tasks.push(...embedSvgUse(cloned, context));
+    }
+  }
+  if (isHTMLElementNode(cloned)) {
+    tasks.push(...embedCssStyleImage(cloned.style, context));
+  }
+  cloned.childNodes.forEach((child) => {
+    embedNode(child, context);
   });
 }
-function shouldEmbed(url) {
-  return url.search(URL_REGEX) !== -1;
-}
-async function embedResources(cssText, baseUrl, options) {
-  if (!shouldEmbed(cssText)) {
-    return cssText;
-  }
-  const filteredCSSText = filterPreferredFontFormat(cssText, options);
-  const urls = parseURLs(filteredCSSText);
-  return urls.reduce((deferred, url) => deferred.then((css) => embed(css, url, baseUrl, options)), Promise.resolve(filteredCSSText));
-}
-
-// node_modules/html-to-image/es/embed-images.js
-async function embedProp(propName, node, options) {
-  var _a;
-  const propValue = (_a = node.style) === null || _a === void 0 ? void 0 : _a.getPropertyValue(propName);
-  if (propValue) {
-    const cssString = await embedResources(propValue, null, options);
-    node.style.setProperty(propName, cssString, node.style.getPropertyPriority(propName));
-    return true;
-  }
-  return false;
-}
-async function embedBackground(clonedNode, options) {
-  ;
-  await embedProp("background", clonedNode, options) || await embedProp("background-image", clonedNode, options);
-  await embedProp("mask", clonedNode, options) || await embedProp("-webkit-mask", clonedNode, options) || await embedProp("mask-image", clonedNode, options) || await embedProp("-webkit-mask-image", clonedNode, options);
-}
-async function embedImageNode(clonedNode, options) {
-  const isImageElement = isInstanceOfElement(clonedNode, HTMLImageElement);
-  if (!(isImageElement && !isDataUrl(clonedNode.src)) && !(isInstanceOfElement(clonedNode, SVGImageElement) && !isDataUrl(clonedNode.href.baseVal))) {
+async function embedWebFont(clone, context) {
+  const {
+    ownerDocument,
+    svgStyleElement,
+    fontFamilies,
+    fontCssTexts,
+    tasks,
+    font
+  } = context;
+  if (!ownerDocument || !svgStyleElement || !fontFamilies.size) {
     return;
   }
-  const url = isImageElement ? clonedNode.src : clonedNode.href.baseVal;
-  const dataURL = await resourceToDataURL(url, getMimeType(url), options);
-  await new Promise((resolve, reject) => {
-    clonedNode.onload = resolve;
-    clonedNode.onerror = options.onImageErrorHandler ? (...attributes) => {
+  if (font && font.cssText) {
+    const cssText = filterPreferredFormat(font.cssText, context);
+    svgStyleElement.appendChild(ownerDocument.createTextNode(`${cssText}
+`));
+  } else {
+    const styleSheets = Array.from(ownerDocument.styleSheets).filter((styleSheet) => {
       try {
-        resolve(options.onImageErrorHandler(...attributes));
+        return "cssRules" in styleSheet && Boolean(styleSheet.cssRules.length);
       } catch (error) {
-        reject(error);
+        context.log.warn(`Error while reading CSS rules from ${styleSheet.href}`, error);
+        return false;
       }
-    } : reject;
-    const image = clonedNode;
-    if (image.decode) {
-      image.decode = resolve;
-    }
-    if (image.loading === "lazy") {
-      image.loading = "eager";
-    }
-    if (isImageElement) {
-      clonedNode.srcset = "";
-      clonedNode.src = dataURL;
-    } else {
-      clonedNode.href.baseVal = dataURL;
-    }
-  });
-}
-async function embedChildren(clonedNode, options) {
-  const children = toArray(clonedNode.childNodes);
-  const deferreds = children.map((child) => embedImages(child, options));
-  await Promise.all(deferreds).then(() => clonedNode);
-}
-async function embedImages(clonedNode, options) {
-  if (isInstanceOfElement(clonedNode, Element)) {
-    await embedBackground(clonedNode, options);
-    await embedImageNode(clonedNode, options);
-    await embedChildren(clonedNode, options);
-  }
-}
-
-// node_modules/html-to-image/es/apply-style.js
-function applyStyle(node, options) {
-  const { style } = node;
-  if (options.backgroundColor) {
-    style.backgroundColor = options.backgroundColor;
-  }
-  if (options.width) {
-    style.width = `${options.width}px`;
-  }
-  if (options.height) {
-    style.height = `${options.height}px`;
-  }
-  const manual = options.style;
-  if (manual != null) {
-    Object.keys(manual).forEach((key) => {
-      style[key] = manual[key];
+    });
+    await Promise.all(
+      styleSheets.flatMap((styleSheet) => {
+        return Array.from(styleSheet.cssRules).map(async (cssRule, index) => {
+          if (isCSSImportRule(cssRule)) {
+            let importIndex = index + 1;
+            const baseUrl = cssRule.href;
+            let cssText = "";
+            try {
+              cssText = await contextFetch(context, {
+                url: baseUrl,
+                requestType: "text",
+                responseType: "text"
+              });
+            } catch (error) {
+              context.log.warn(`Error fetch remote css import from ${baseUrl}`, error);
+            }
+            const replacedCssText = cssText.replace(
+              URL_RE,
+              (raw, quotation, url) => raw.replace(url, resolveUrl(url, baseUrl))
+            );
+            for (const rule of parseCss(replacedCssText)) {
+              try {
+                styleSheet.insertRule(
+                  rule,
+                  rule.startsWith("@import") ? importIndex += 1 : styleSheet.cssRules.length
+                );
+              } catch (error) {
+                context.log.warn("Error inserting rule from remote css import", { rule, error });
+              }
+            }
+          }
+        });
+      })
+    );
+    const cssRules = [];
+    styleSheets.forEach((sheet) => {
+      unwrapCssLayers(sheet.cssRules, cssRules);
+    });
+    cssRules.filter((cssRule) => {
+      var _a2;
+      return isCssFontFaceRule(cssRule) && hasCssUrl(cssRule.style.getPropertyValue("src")) && ((_a2 = splitFontFamily(cssRule.style.getPropertyValue("font-family"))) == null ? void 0 : _a2.some((val) => fontFamilies.has(val)));
+    }).forEach((value) => {
+      const rule = value;
+      const cssText = fontCssTexts.get(rule.cssText);
+      if (cssText) {
+        svgStyleElement.appendChild(ownerDocument.createTextNode(`${cssText}
+`));
+      } else {
+        tasks.push(
+          replaceCssUrlToDataUrl(
+            rule.cssText,
+            rule.parentStyleSheet ? rule.parentStyleSheet.href : null,
+            context
+          ).then((cssText2) => {
+            cssText2 = filterPreferredFormat(cssText2, context);
+            fontCssTexts.set(rule.cssText, cssText2);
+            svgStyleElement.appendChild(ownerDocument.createTextNode(`${cssText2}
+`));
+          })
+        );
+      }
     });
   }
-  return node;
 }
-
-// node_modules/html-to-image/es/embed-webfonts.js
-var cssFetchCache = {};
-async function fetchCSS(url) {
-  let cache2 = cssFetchCache[url];
-  if (cache2 != null) {
-    return cache2;
-  }
-  const res = await fetch(url);
-  const cssText = await res.text();
-  cache2 = { url, cssText };
-  cssFetchCache[url] = cache2;
-  return cache2;
-}
-async function embedFonts(data, options) {
-  let cssText = data.cssText;
-  const regexUrl = /url\(["']?([^"')]+)["']?\)/g;
-  const fontLocs = cssText.match(/url\([^)]+\)/g) || [];
-  const loadFonts = fontLocs.map(async (loc) => {
-    let url = loc.replace(regexUrl, "$1");
-    if (!url.startsWith("https://")) {
-      url = new URL(url, data.url).href;
-    }
-    return fetchAsDataURL(url, options.fetchRequestInit, ({ result }) => {
-      cssText = cssText.replace(loc, `url(${result})`);
-      return [loc, result];
-    });
-  });
-  return Promise.all(loadFonts).then(() => cssText);
-}
-function parseCSS(source) {
-  if (source == null) {
+var COMMENTS_RE = /(\/\*[\s\S]*?\*\/)/g;
+var KEYFRAMES_RE = /((@.*?keyframes [\s\S]*?){([\s\S]*?}\s*?)})/gi;
+function parseCss(source) {
+  if (source == null)
     return [];
-  }
   const result = [];
-  const commentsRegex = /(\/\*[\s\S]*?\*\/)/gi;
-  let cssText = source.replace(commentsRegex, "");
-  const keyframesRegex = new RegExp("((@.*?keyframes [\\s\\S]*?){([\\s\\S]*?}\\s*?)})", "gi");
+  let cssText = source.replace(COMMENTS_RE, "");
   while (true) {
-    const matches = keyframesRegex.exec(cssText);
-    if (matches === null) {
+    const matches = KEYFRAMES_RE.exec(cssText);
+    if (!matches)
       break;
-    }
     result.push(matches[0]);
   }
-  cssText = cssText.replace(keyframesRegex, "");
-  const importRegex = /@import[\s\S]*?url\([^)]*\)[\s\S]*?;/gi;
-  const combinedCSSRegex = "((\\s*?(?:\\/\\*[\\s\\S]*?\\*\\/)?\\s*?@media[\\s\\S]*?){([\\s\\S]*?)}\\s*?})|(([\\s\\S]*?){([\\s\\S]*?)})";
-  const unifiedRegex = new RegExp(combinedCSSRegex, "gi");
+  cssText = cssText.replace(KEYFRAMES_RE, "");
+  const IMPORT_RE = /@import[\s\S]*?url\([^)]*\)[\s\S]*?;/gi;
+  const UNIFIED_RE = new RegExp(
+    // eslint-disable-next-line
+    "((\\s*?(?:\\/\\*[\\s\\S]*?\\*\\/)?\\s*?@media[\\s\\S]*?){([\\s\\S]*?)}\\s*?})|(([\\s\\S]*?){([\\s\\S]*?)})",
+    "gi"
+  );
   while (true) {
-    let matches = importRegex.exec(cssText);
-    if (matches === null) {
-      matches = unifiedRegex.exec(cssText);
-      if (matches === null) {
+    let matches = IMPORT_RE.exec(cssText);
+    if (!matches) {
+      matches = UNIFIED_RE.exec(cssText);
+      if (!matches) {
         break;
       } else {
-        importRegex.lastIndex = unifiedRegex.lastIndex;
+        IMPORT_RE.lastIndex = UNIFIED_RE.lastIndex;
       }
     } else {
-      unifiedRegex.lastIndex = importRegex.lastIndex;
+      UNIFIED_RE.lastIndex = IMPORT_RE.lastIndex;
     }
     result.push(matches[0]);
   }
   return result;
 }
-async function getCSSRules(styleSheets, options) {
-  const ret = [];
-  const deferreds = [];
-  styleSheets.forEach((sheet) => {
-    if ("cssRules" in sheet) {
-      try {
-        toArray(sheet.cssRules || []).forEach((item, index) => {
-          if (item.type === CSSRule.IMPORT_RULE) {
-            let importIndex = index + 1;
-            const url = item.href;
-            const deferred = fetchCSS(url).then((metadata) => embedFonts(metadata, options)).then((cssText) => parseCSS(cssText).forEach((rule) => {
-              try {
-                sheet.insertRule(rule, rule.startsWith("@import") ? importIndex += 1 : sheet.cssRules.length);
-              } catch (error) {
-                console.error("Error inserting rule from remote css", {
-                  rule,
-                  error
-                });
-              }
-            })).catch((e) => {
-              console.error("Error loading remote css", e.toString());
-            });
-            deferreds.push(deferred);
-          }
-        });
-      } catch (e) {
-        const inline = styleSheets.find((a) => a.href == null) || document.styleSheets[0];
-        if (sheet.href != null) {
-          deferreds.push(fetchCSS(sheet.href).then((metadata) => embedFonts(metadata, options)).then((cssText) => parseCSS(cssText).forEach((rule) => {
-            inline.insertRule(rule, inline.cssRules.length);
-          })).catch((err) => {
-            console.error("Error loading remote stylesheet", err);
-          }));
-        }
-        console.error("Error inlining remote css file", e);
-      }
+var URL_WITH_FORMAT_RE = /url\([^)]+\)\s*format\((["']?)([^"']+)\1\)/g;
+var FONT_SRC_RE = /src:\s*(?:url\([^)]+\)\s*format\([^)]+\)[,;]\s*)+/g;
+function filterPreferredFormat(str, context) {
+  const { font } = context;
+  const preferredFormat = font ? font == null ? void 0 : font.preferredFormat : void 0;
+  return preferredFormat ? str.replace(FONT_SRC_RE, (match) => {
+    while (true) {
+      const [src, , format] = URL_WITH_FORMAT_RE.exec(match) || [];
+      if (!format)
+        return "";
+      if (format === preferredFormat)
+        return `src: ${src};`;
     }
-  });
-  return Promise.all(deferreds).then(() => {
-    styleSheets.forEach((sheet) => {
-      if ("cssRules" in sheet) {
-        try {
-          toArray(sheet.cssRules || []).forEach((item) => {
-            ret.push(item);
-          });
-        } catch (e) {
-          console.error(`Error while reading CSS rules from ${sheet.href}`, e);
-        }
-      }
-    });
-    return ret;
-  });
+  }) : str;
 }
-function getWebFontRules(cssRules) {
-  return cssRules.filter((rule) => rule.type === CSSRule.FONT_FACE_RULE).filter((rule) => shouldEmbed(rule.style.getPropertyValue("src")));
-}
-async function parseWebFontRules(node, options) {
-  if (node.ownerDocument == null) {
-    throw new Error("Provided element is not within a Document");
-  }
-  const styleSheets = toArray(node.ownerDocument.styleSheets);
-  const cssRules = await getCSSRules(styleSheets, options);
-  return getWebFontRules(cssRules);
-}
-function normalizeFontFamily(font) {
-  return font.trim().replace(/["']/g, "");
-}
-function getUsedFonts(node) {
-  const fonts = /* @__PURE__ */ new Set();
-  function traverse(node2) {
-    const fontFamily = node2.style.fontFamily || getComputedStyle(node2).fontFamily;
-    fontFamily.split(",").forEach((font) => {
-      fonts.add(normalizeFontFamily(font));
-    });
-    Array.from(node2.children).forEach((child) => {
-      if (child instanceof HTMLElement) {
-        traverse(child);
-      }
-    });
-  }
-  traverse(node);
-  return fonts;
-}
-async function getWebFontCSS(node, options) {
-  const rules = await parseWebFontRules(node, options);
-  const usedFonts = getUsedFonts(node);
-  const cssTexts = await Promise.all(rules.filter((rule) => usedFonts.has(normalizeFontFamily(rule.style.fontFamily))).map((rule) => {
-    const baseUrl = rule.parentStyleSheet ? rule.parentStyleSheet.href : null;
-    return embedResources(rule.cssText, baseUrl, options);
-  }));
-  return cssTexts.join("\n");
-}
-async function embedWebFonts(clonedNode, options) {
-  const cssText = options.fontEmbedCSS != null ? options.fontEmbedCSS : options.skipFonts ? null : await getWebFontCSS(clonedNode, options);
-  if (cssText) {
-    const styleNode = document.createElement("style");
-    const sytleContent = document.createTextNode(cssText);
-    styleNode.appendChild(sytleContent);
-    if (clonedNode.firstChild) {
-      clonedNode.insertBefore(styleNode, clonedNode.firstChild);
+function unwrapCssLayers(rules, out = []) {
+  for (const rule of Array.from(rules)) {
+    if (isLayerBlockRule(rule)) {
+      out.push(...unwrapCssLayers(rule.cssRules));
+    } else if ("cssRules" in rule) {
+      unwrapCssLayers(rule.cssRules, out);
     } else {
-      clonedNode.appendChild(styleNode);
+      out.push(rule);
     }
   }
+  return out;
 }
-
-// node_modules/html-to-image/es/index.js
-async function toSvg(node, options = {}) {
-  const { width, height } = getImageSize(node, options);
-  const clonedNode = await cloneNode(node, options, true);
-  await embedWebFonts(clonedNode, options);
-  await embedImages(clonedNode, options);
-  applyStyle(clonedNode, options);
-  const datauri = await nodeToDataURL(clonedNode, width, height);
-  return datauri;
+async function domToForeignObjectSvg(node, options) {
+  const context = await orCreateContext(node, options);
+  if (isElementNode(context.node) && isSVGElementNode(context.node))
+    return context.node;
+  const {
+    ownerDocument,
+    log,
+    tasks,
+    svgStyleElement,
+    svgDefsElement,
+    svgStyles,
+    font,
+    progress,
+    autoDestruct,
+    onCloneNode,
+    onEmbedNode,
+    onCreateForeignObjectSvg
+  } = context;
+  log.time("clone node");
+  const clone = await cloneNode(context.node, context, true);
+  if (svgStyleElement && ownerDocument) {
+    let allCssText = "";
+    svgStyles.forEach((klasses, cssText) => {
+      allCssText += `${klasses.join(",\n")} {
+  ${cssText}
 }
-async function toCanvas(node, options = {}) {
-  const { width, height } = getImageSize(node, options);
-  const svg = await toSvg(node, options);
-  const img = await createImage(svg);
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  const ratio = options.pixelRatio || getPixelRatio();
-  const canvasWidth = options.canvasWidth || width;
-  const canvasHeight = options.canvasHeight || height;
-  canvas.width = canvasWidth * ratio;
-  canvas.height = canvasHeight * ratio;
-  if (!options.skipAutoScale) {
-    checkCanvasDimensions(canvas);
+`;
+    });
+    svgStyleElement.appendChild(ownerDocument.createTextNode(allCssText));
   }
-  canvas.style.width = `${canvasWidth}`;
-  canvas.style.height = `${canvasHeight}`;
-  if (options.backgroundColor) {
-    context.fillStyle = options.backgroundColor;
-    context.fillRect(0, 0, canvas.width, canvas.height);
+  log.timeEnd("clone node");
+  await (onCloneNode == null ? void 0 : onCloneNode(clone));
+  if (font !== false && isElementNode(clone)) {
+    log.time("embed web font");
+    await embedWebFont(clone, context);
+    log.timeEnd("embed web font");
   }
-  context.drawImage(img, 0, 0, canvas.width, canvas.height);
-  return canvas;
+  log.time("embed node");
+  embedNode(clone, context);
+  const count = tasks.length;
+  let current = 0;
+  const runTask = async () => {
+    while (true) {
+      const task = tasks.pop();
+      if (!task)
+        break;
+      try {
+        await task;
+      } catch (error) {
+        context.log.warn("Failed to run task", error);
+      }
+      progress == null ? void 0 : progress(++current, count);
+    }
+  };
+  progress == null ? void 0 : progress(current, count);
+  await Promise.all([...Array.from({ length: 4 })].map(runTask));
+  log.timeEnd("embed node");
+  await (onEmbedNode == null ? void 0 : onEmbedNode(clone));
+  const svg = createForeignObjectSvg(clone, context);
+  svgDefsElement && svg.insertBefore(svgDefsElement, svg.children[0]);
+  svgStyleElement && svg.insertBefore(svgStyleElement, svg.children[0]);
+  autoDestruct && destroyContext(context);
+  await (onCreateForeignObjectSvg == null ? void 0 : onCreateForeignObjectSvg(svg));
+  return svg;
 }
-async function toPng(node, options = {}) {
-  const canvas = await toCanvas(node, options);
-  return canvas.toDataURL();
+function createForeignObjectSvg(clone, context) {
+  const { width, height } = context;
+  const svg = createSvg(width, height, clone.ownerDocument);
+  const foreignObject = svg.ownerDocument.createElementNS(svg.namespaceURI, "foreignObject");
+  foreignObject.setAttributeNS(null, "x", "0%");
+  foreignObject.setAttributeNS(null, "y", "0%");
+  foreignObject.setAttributeNS(null, "width", "100%");
+  foreignObject.setAttributeNS(null, "height", "100%");
+  foreignObject.append(clone);
+  svg.appendChild(foreignObject);
+  return svg;
+}
+async function domToCanvas(node, options) {
+  var _a2;
+  const context = await orCreateContext(node, options);
+  const svg = await domToForeignObjectSvg(context);
+  const dataUrl = svgToDataUrl(svg, context.isEnable("removeControlCharacter"));
+  if (!context.autoDestruct) {
+    context.svgStyleElement = createStyleElement(context.ownerDocument);
+    context.svgDefsElement = (_a2 = context.ownerDocument) == null ? void 0 : _a2.createElementNS(XMLNS, "defs");
+    context.svgStyles.clear();
+  }
+  const image = createImage(dataUrl, svg.ownerDocument);
+  return await imageToCanvas(image, context);
+}
+async function domToDataUrl(node, options) {
+  const context = await orCreateContext(node, options);
+  const { log, quality, type, dpi } = context;
+  const canvas = await domToCanvas(context);
+  log.time("canvas to data url");
+  let dataUrl = canvas.toDataURL(type, quality);
+  if (["image/png", "image/jpeg"].includes(type) && dpi && SUPPORT_ATOB && SUPPORT_BTOA) {
+    const [format, body] = dataUrl.split(",");
+    let headerLength = 0;
+    let overwritepHYs = false;
+    if (type === "image/png") {
+      const b64Index = detectPhysChunkFromDataUrl(body);
+      if (b64Index >= 0) {
+        headerLength = Math.ceil((b64Index + 28) / 3) * 4;
+        overwritepHYs = true;
+      } else {
+        headerLength = 33 / 3 * 4;
+      }
+    } else if (type === "image/jpeg") {
+      headerLength = 18 / 3 * 4;
+    }
+    const stringHeader = body.substring(0, headerLength);
+    const restOfData = body.substring(headerLength);
+    const headerBytes = window.atob(stringHeader);
+    const uint8Array = new Uint8Array(headerBytes.length);
+    for (let i = 0; i < uint8Array.length; i++) {
+      uint8Array[i] = headerBytes.charCodeAt(i);
+    }
+    const finalArray = type === "image/png" ? changePngDpi(uint8Array, dpi, overwritepHYs) : changeJpegDpi(uint8Array, dpi);
+    const base64Header = window.btoa(String.fromCharCode(...finalArray));
+    dataUrl = [format, ",", base64Header, restOfData].join("");
+  }
+  log.timeEnd("canvas to data url");
+  return dataUrl;
+}
+async function domToPng(node, options) {
+  return domToDataUrl(
+    await orCreateContext(node, __spreadProps(__spreadValues({}, options), { type: "image/png" }))
+  );
 }
 
 // src/ui/screenshot.ts
+function nodeFilter(node) {
+  var _a2;
+  if ((_a2 = node.getAttribute) == null ? void 0 : _a2.call(node, "data-instruckt")) return false;
+  return true;
+}
+function hasShadowDOM() {
+  var _a2;
+  if ((_a2 = document.adoptedStyleSheets) == null ? void 0 : _a2.length) return true;
+  const el = document.querySelector("[data-flux], flux\\:button, flux\\:input, [is]");
+  if (el) return true;
+  const body = document.body;
+  for (const child of body.querySelectorAll("*")) {
+    if (child.shadowRoot) return true;
+  }
+  return false;
+}
+var _useScreenCapture = null;
+function shouldUseScreenCapture() {
+  if (_useScreenCapture === null) {
+    _useScreenCapture = hasShadowDOM();
+  }
+  return _useScreenCapture;
+}
+var activeStream = null;
+async function getStream() {
+  if (activeStream && activeStream.active) return activeStream;
+  activeStream = await navigator.mediaDevices.getDisplayMedia({
+    video: { displaySurface: "browser" },
+    preferCurrentTab: true
+  });
+  activeStream.getVideoTracks()[0].addEventListener("ended", () => {
+    activeStream = null;
+  });
+  return activeStream;
+}
+async function grabFrame(stream) {
+  const video = document.createElement("video");
+  video.srcObject = stream;
+  video.muted = true;
+  await video.play();
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const bitmap = await createImageBitmap(video);
+  video.pause();
+  video.srcObject = null;
+  return bitmap;
+}
+function captureRectFromStream(stream, rect) {
+  return grabFrame(stream).then((bitmap) => {
+    const dpr = window.devicePixelRatio || 1;
+    const canvas = document.createElement("canvas");
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(
+      bitmap,
+      rect.x * dpr,
+      rect.y * dpr,
+      rect.width * dpr,
+      rect.height * dpr,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+    bitmap.close();
+    return canvas.toDataURL("image/png");
+  });
+}
 async function captureElement(el) {
+  if (!shouldUseScreenCapture()) {
+    try {
+      const dataUrl = await domToPng(el, {
+        scale: 2,
+        filter: nodeFilter
+      });
+      if (dataUrl) return dataUrl;
+    } catch (e) {
+    }
+  }
   try {
-    return await toPng(el, {
-      cacheBust: true,
-      pixelRatio: 2,
-      skipFonts: true,
-      filter: (node) => {
-        var _a, _b;
-        if ((_a = node.getAttribute) == null ? void 0 : _a.call(node, "data-instruckt")) return false;
-        if (node.tagName === "LINK" && node.getAttribute("rel") === "stylesheet") {
-          const href = (_b = node.getAttribute("href")) != null ? _b : "";
-          if (href.startsWith("http") && !href.startsWith(window.location.origin)) return false;
-        }
-        return true;
-      }
-    });
-  } catch (e) {
+    const stream = await getStream();
+    return await captureRectFromStream(stream, el.getBoundingClientRect());
+  } catch (err) {
+    console.warn("[instruckt] captureElement failed:", err);
     return null;
   }
 }
 async function captureRegion(rect) {
+  if (!shouldUseScreenCapture()) {
+    try {
+      const full = await domToPng(document.body, {
+        scale: 2,
+        filter: nodeFilter
+      });
+      if (full) return await cropImage(full, rect);
+    } catch (e) {
+    }
+  }
   try {
-    const full = await toPng(document.body, {
-      cacheBust: true,
-      pixelRatio: 2,
-      skipFonts: true,
-      filter: (node) => {
-        var _a, _b;
-        if ((_a = node.getAttribute) == null ? void 0 : _a.call(node, "data-instruckt")) return false;
-        if (node.tagName === "LINK" && node.getAttribute("rel") === "stylesheet") {
-          const href = (_b = node.getAttribute("href")) != null ? _b : "";
-          if (href.startsWith("http") && !href.startsWith(window.location.origin)) return false;
-        }
-        return true;
-      }
-    });
-    return await cropImage(full, rect);
-  } catch (e) {
+    const stream = await getStream();
+    return await captureRectFromStream(stream, rect);
+  } catch (err) {
+    console.warn("[instruckt] captureRegion failed:", err);
     return null;
   }
 }
@@ -1724,7 +2574,7 @@ var AnnotationPopup = class {
   }
   // ── New annotation popup ──────────────────────────────────────
   showNew(pending, callbacks) {
-    var _a, _b;
+    var _a2, _b;
     this.destroy();
     this.host = document.createElement("div");
     this.host.setAttribute("data-instruckt", "popup");
@@ -1751,7 +2601,7 @@ var AnnotationPopup = class {
         <button class="btn-primary" data-action="submit" ${hasScreenshot ? "" : "disabled"}>Add note</button>
       </div>
     `;
-    let currentScreenshot = (_a = pending.screenshot) != null ? _a : null;
+    let currentScreenshot = (_a2 = pending.screenshot) != null ? _a2 : null;
     const textarea = popup.querySelector("textarea");
     const submitBtn = popup.querySelector('[data-action="submit"]');
     const screenshotSlot = popup.querySelector(".screenshot-slot");
@@ -1820,7 +2670,7 @@ var AnnotationPopup = class {
   }
   // ── Edit existing annotation ──────────────────────────────────
   showEdit(annotation, callbacks, endpoint) {
-    var _a;
+    var _a2;
     this.destroy();
     this.host = document.createElement("div");
     this.host.setAttribute("data-instruckt", "popup");
@@ -1876,7 +2726,7 @@ var AnnotationPopup = class {
       this.destroy();
     });
     this.shadow.appendChild(popup);
-    ((_a = document.getElementById("instruckt-root")) != null ? _a : document.body).appendChild(this.host);
+    ((_a2 = document.getElementById("instruckt-root")) != null ? _a2 : document.body).appendChild(this.host);
     const markerX = annotation.x / 100 * window.innerWidth;
     const markerY = annotation.y - window.scrollY;
     this.positionHost(markerX, markerY);
@@ -1900,10 +2750,10 @@ var AnnotationPopup = class {
     }
     Object.assign(this.host.style, { position: "fixed", zIndex: "2147483647", left: "-9999px", top: "0" });
     requestAnimationFrame(() => {
-      var _a, _b;
+      var _a2, _b;
       if (!this.host) return;
       const w = 340 + 20;
-      const h = (_b = (_a = this.host.querySelector(".popup")) == null ? void 0 : _a.getBoundingClientRect().height) != null ? _b : 300;
+      const h = (_b = (_a2 = this.host.querySelector(".popup")) == null ? void 0 : _a2.getBoundingClientRect().height) != null ? _b : 300;
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const left = Math.max(10, Math.min(x + 10, vw - w));
@@ -1915,8 +2765,8 @@ var AnnotationPopup = class {
     setTimeout(() => document.addEventListener("mousedown", this.boundOutside), 0);
   }
   destroy() {
-    var _a;
-    (_a = this.host) == null ? void 0 : _a.remove();
+    var _a2;
+    (_a2 = this.host) == null ? void 0 : _a2.remove();
     this.host = null;
     this.shadow = null;
     document.removeEventListener("mousedown", this.boundOutside);
@@ -1928,7 +2778,7 @@ var AnnotationMarkers = class {
   constructor(onClick) {
     this.onClick = onClick;
     this.markers = /* @__PURE__ */ new Map();
-    var _a;
+    var _a2;
     this.container = document.createElement("div");
     Object.assign(this.container.style, {
       position: "fixed",
@@ -1937,7 +2787,7 @@ var AnnotationMarkers = class {
       zIndex: "2147483645"
     });
     this.container.setAttribute("data-instruckt", "markers");
-    const root = (_a = document.getElementById("instruckt-root")) != null ? _a : document.body;
+    const root = (_a2 = document.getElementById("instruckt-root")) != null ? _a2 : document.body;
     root.appendChild(this.container);
   }
   /** Add or update a marker for an annotation */
@@ -2097,7 +2947,7 @@ function detect(el) {
   return null;
 }
 function getContext(el) {
-  var _a, _b;
+  var _a2, _b;
   if (!isAvailable()) return null;
   const wireEl = detect(el);
   if (!wireEl) return null;
@@ -2107,7 +2957,7 @@ function getContext(el) {
   if (snapshotAttr) {
     try {
       const snapshot = JSON.parse(snapshotAttr);
-      componentName = (_b = (_a = snapshot == null ? void 0 : snapshot.memo) == null ? void 0 : _a.name) != null ? _b : "Unknown";
+      componentName = (_b = (_a2 = snapshot == null ? void 0 : snapshot.memo) == null ? void 0 : _a2.name) != null ? _b : "Unknown";
     } catch (e) {
     }
   }
@@ -2120,20 +2970,20 @@ function getContext(el) {
 
 // src/adapters/vue.ts
 function detect2(el) {
-  var _a;
+  var _a2;
   let node = el;
   while (node && node !== document.documentElement) {
-    const instance = (_a = node.__vueParentComponent) != null ? _a : node.__vue__;
+    const instance = (_a2 = node.__vueParentComponent) != null ? _a2 : node.__vue__;
     if (instance) return instance;
     node = node.parentElement;
   }
   return null;
 }
 function getContext2(el) {
-  var _a, _b, _c, _d, _e, _f, _g, _h;
+  var _a2, _b, _c, _d, _e, _f, _g, _h;
   const instance = detect2(el);
   if (!instance) return null;
-  const name = (_h = (_g = (_e = (_c = (_a = instance.$options) == null ? void 0 : _a.name) != null ? _c : (_b = instance.$options) == null ? void 0 : _b.__name) != null ? _e : (_d = instance.type) == null ? void 0 : _d.name) != null ? _g : (_f = instance.type) == null ? void 0 : _f.__name) != null ? _h : "Anonymous";
+  const name = (_h = (_g = (_e = (_c = (_a2 = instance.$options) == null ? void 0 : _a2.name) != null ? _c : (_b = instance.$options) == null ? void 0 : _b.__name) != null ? _e : (_d = instance.type) == null ? void 0 : _d.name) != null ? _g : (_f = instance.type) == null ? void 0 : _f.__name) != null ? _h : "Anonymous";
   const data = {};
   if (instance.props) {
     Object.assign(data, instance.props);
@@ -2167,10 +3017,10 @@ function detect3(el) {
   return null;
 }
 function getContext3(el) {
-  var _a, _b, _c, _d;
+  var _a2, _b, _c, _d;
   const meta = detect3(el);
   if (!meta) return null;
-  const filePath = (_b = (_a = meta.loc) == null ? void 0 : _a.file) != null ? _b : "";
+  const filePath = (_b = (_a2 = meta.loc) == null ? void 0 : _a2.file) != null ? _b : "";
   const component = filePath ? (_d = (_c = filePath.split("/").pop()) == null ? void 0 : _c.replace(/\.svelte$/, "")) != null ? _d : "Unknown" : "Unknown";
   return {
     framework: "svelte",
@@ -2204,8 +3054,8 @@ function getComponentName(fiber) {
   return "Component";
 }
 function getProps(fiber) {
-  var _a, _b;
-  const props = (_b = (_a = fiber.memoizedProps) != null ? _a : fiber.pendingProps) != null ? _b : {};
+  var _a2, _b;
+  const props = (_b = (_a2 = fiber.memoizedProps) != null ? _a2 : fiber.pendingProps) != null ? _b : {};
   const result = {};
   for (const [k, v] of Object.entries(props)) {
     if (k === "children" || typeof v === "function") continue;
@@ -2254,8 +3104,8 @@ var _Instruckt = class _Instruckt {
     this.highlightLocked = false;
     this.pollTimer = null;
     this.boundReposition = () => {
-      var _a;
-      (_a = this.markers) == null ? void 0 : _a.reposition(this.annotations);
+      var _a2;
+      (_a2 = this.markers) == null ? void 0 : _a2.reposition(this.annotations);
     };
     this.freezeBlockEvents = ["click", "mousedown", "pointerdown", "pointerup", "mouseup", "touchstart", "touchend", "auxclick"];
     this.freezePassiveEvents = ["focusin", "focusout", "blur", "pointerleave", "mouseleave", "mouseout"];
@@ -2286,11 +3136,11 @@ var _Instruckt = class _Instruckt {
       this.pendingMouseTarget = e.target;
       if (this.rafId === null) {
         this.rafId = requestAnimationFrame(() => {
-          var _a, _b;
+          var _a2, _b;
           this.rafId = null;
           if (this.highlightLocked) return;
           if (this.pendingMouseTarget && !this.isInstruckt(this.pendingMouseTarget)) {
-            (_a = this.highlight) == null ? void 0 : _a.show(this.pendingMouseTarget);
+            (_a2 = this.highlight) == null ? void 0 : _a2.show(this.pendingMouseTarget);
           } else {
             (_b = this.highlight) == null ? void 0 : _b.hide();
           }
@@ -2298,9 +3148,9 @@ var _Instruckt = class _Instruckt {
       }
     };
     this.boundMouseLeave = () => {
-      var _a;
+      var _a2;
       if (this.highlightLocked) return;
-      (_a = this.highlight) == null ? void 0 : _a.hide();
+      (_a2 = this.highlight) == null ? void 0 : _a2.hide();
     };
     /** Block mousedown/pointerdown in annotation mode so SPA frameworks can't navigate */
     this.boundAnnotateBlock = (e) => {
@@ -2310,13 +3160,13 @@ var _Instruckt = class _Instruckt {
       e.stopImmediatePropagation();
     };
     this.boundClick = (e) => {
-      var _a, _b, _c;
+      var _a2, _b, _c;
       const target = e.target;
       if (this.isInstruckt(target)) return;
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      const selectedText = ((_a = window.getSelection()) == null ? void 0 : _a.toString().trim()) || void 0;
+      const selectedText = ((_a2 = window.getSelection()) == null ? void 0 : _a2.toString().trim()) || void 0;
       const elementPath = getElementSelector(target);
       const elementName = getElementName(target);
       const elementLabel = getElementLabel(target);
@@ -2398,10 +3248,10 @@ var _Instruckt = class _Instruckt {
     };
   }
   reattach() {
-    var _a, _b;
+    var _a2, _b;
     const wasAnnotating = this.isAnnotating;
     const wasFrozen = this.isFrozen;
-    const wasMinimized = (_b = (_a = this.toolbar) == null ? void 0 : _a.isMinimized()) != null ? _b : false;
+    const wasMinimized = (_b = (_a2 = this.toolbar) == null ? void 0 : _a2.isMinimized()) != null ? _b : false;
     if (this.isAnnotating) this.detachAnnotateListeners();
     if (this.isFrozen) this.setFrozen(false);
     this.isAnnotating = false;
@@ -2420,11 +3270,11 @@ var _Instruckt = class _Instruckt {
   }
   // ── Minimize ────────────────────────────────────────────────────
   onMinimize(minimized) {
-    var _a, _b, _c, _d, _e;
+    var _a2, _b, _c, _d, _e;
     if (minimized) {
       if (this.isAnnotating) this.setAnnotating(false);
       if (this.isFrozen) this.setFrozen(false);
-      (_a = this.toolbar) == null ? void 0 : _a.setAnnotateActive(false);
+      (_a2 = this.toolbar) == null ? void 0 : _a2.setAnnotateActive(false);
       (_b = this.toolbar) == null ? void 0 : _b.setFreezeActive(false);
       (_c = this.markers) == null ? void 0 : _c.setVisible(false);
       (_d = this.popup) == null ? void 0 : _d.destroy();
@@ -2492,8 +3342,8 @@ var _Instruckt = class _Instruckt {
   }
   // ── Page-scoped markers ─────────────────────────────────────────
   syncMarkers() {
-    var _a, _b, _c, _d;
-    (_a = this.markers) == null ? void 0 : _a.clear();
+    var _a2, _b, _c, _d;
+    (_a2 = this.markers) == null ? void 0 : _a2.clear();
     const current = pageKey();
     let idx = 0;
     for (const a of this.annotations) {
@@ -2525,9 +3375,9 @@ var _Instruckt = class _Instruckt {
   }
   // ── Annotate mode ─────────────────────────────────────────────
   setAnnotating(active) {
-    var _a, _b;
+    var _a2, _b;
     this.isAnnotating = active;
-    (_a = this.toolbar) == null ? void 0 : _a.setAnnotateActive(active);
+    (_a2 = this.toolbar) == null ? void 0 : _a2.setAnnotateActive(active);
     if (active) {
       this.attachAnnotateListeners();
     } else {
@@ -2542,9 +3392,9 @@ var _Instruckt = class _Instruckt {
   }
   // ── Freeze mode ──────────────────────────────────────────────
   setFrozen(frozen) {
-    var _a, _b;
+    var _a2, _b;
     this.isFrozen = frozen;
-    (_a = this.toolbar) == null ? void 0 : _a.setFreezeActive(frozen);
+    (_a2 = this.toolbar) == null ? void 0 : _a2.setFreezeActive(frozen);
     if (frozen) {
       this.updateFreezeStyles();
       this.freezePopovers();
@@ -2573,9 +3423,9 @@ var _Instruckt = class _Instruckt {
     this.frozenPopovers = [];
     const openSelector = ":popover-open, .\\:popover-open";
     document.querySelectorAll("[popover]").forEach((el) => {
-      var _a;
+      var _a2;
       const htmlEl = el;
-      const val = (_a = htmlEl.getAttribute("popover")) != null ? _a : "";
+      const val = (_a2 = htmlEl.getAttribute("popover")) != null ? _a2 : "";
       let isOpen = false;
       try {
         isOpen = htmlEl.matches(openSelector);
@@ -2611,9 +3461,9 @@ var _Instruckt = class _Instruckt {
   }
   /** Update freeze CSS — pointer-events only blocked when NOT annotating */
   updateFreezeStyles() {
-    var _a;
+    var _a2;
     if (!this.isFrozen) return;
-    (_a = this.frozenStyleEl) == null ? void 0 : _a.remove();
+    (_a2 = this.frozenStyleEl) == null ? void 0 : _a2.remove();
     this.frozenStyleEl = document.createElement("style");
     this.frozenStyleEl.id = "instruckt-freeze";
     const pointerBlock = this.isAnnotating ? "" : `
@@ -2636,18 +3486,18 @@ var _Instruckt = class _Instruckt {
     document.head.appendChild(this.frozenStyleEl);
   }
   showAnnotationPopup(pending) {
-    var _a;
-    (_a = this.popup) == null ? void 0 : _a.showNew(pending, {
+    var _a2;
+    (_a2 = this.popup) == null ? void 0 : _a2.showNew(pending, {
       onSubmit: (result) => {
-        var _a2;
+        var _a3;
         this.highlightLocked = false;
-        (_a2 = this.highlight) == null ? void 0 : _a2.hide();
+        (_a3 = this.highlight) == null ? void 0 : _a3.hide();
         this.submitAnnotation(pending, result.comment, result.screenshot);
       },
       onCancel: () => {
-        var _a2;
+        var _a3;
         this.highlightLocked = false;
-        (_a2 = this.highlight) == null ? void 0 : _a2.hide();
+        (_a3 = this.highlight) == null ? void 0 : _a3.hide();
       }
     });
   }
@@ -2673,7 +3523,7 @@ var _Instruckt = class _Instruckt {
   }
   // ── Region screenshot ────────────────────────────────────────
   async startRegionCapture() {
-    var _a, _b;
+    var _a2, _b;
     const wasAnnotating = this.isAnnotating;
     if (wasAnnotating) this.setAnnotating(false);
     const rect = await selectRegion();
@@ -2688,7 +3538,7 @@ var _Instruckt = class _Instruckt {
     }
     const centerX = rect.x + rect.width / 2;
     const centerY = rect.y + rect.height / 2;
-    const target = (_a = document.elementFromPoint(centerX, centerY)) != null ? _a : document.body;
+    const target = (_a2 = document.elementFromPoint(centerX, centerY)) != null ? _a2 : document.body;
     const pending = {
       element: target,
       elementPath: getElementSelector(target),
@@ -2706,8 +3556,8 @@ var _Instruckt = class _Instruckt {
   }
   // ── Framework detection ───────────────────────────────────────
   detectFramework(el) {
-    var _a;
-    const adapters = (_a = this.config.adapters) != null ? _a : [];
+    var _a2;
+    const adapters = (_a2 = this.config.adapters) != null ? _a2 : [];
     if (adapters.includes("livewire")) {
       const ctx = getContext(el);
       if (ctx) return ctx;
@@ -2728,7 +3578,7 @@ var _Instruckt = class _Instruckt {
   }
   // ── Submit ────────────────────────────────────────────────────
   async submitAnnotation(pending, comment, screenshot) {
-    var _a, _b;
+    var _a2, _b;
     const payload = {
       x: pending.x / window.innerWidth * 100,
       y: pending.y + window.scrollY,
@@ -2758,13 +3608,13 @@ var _Instruckt = class _Instruckt {
     this.annotations.push(annotation);
     this.saveToStorage();
     this.syncMarkers();
-    (_b = (_a = this.config).onAnnotationAdd) == null ? void 0 : _b.call(_a, annotation);
+    (_b = (_a2 = this.config).onAnnotationAdd) == null ? void 0 : _b.call(_a2, annotation);
     this.copyAnnotations();
   }
   // ── Marker click — edit or delete ─────────────────────────────
   onMarkerClick(annotation) {
-    var _a;
-    (_a = this.popup) == null ? void 0 : _a.showEdit(annotation, {
+    var _a2;
+    (_a2 = this.popup) == null ? void 0 : _a2.showEdit(annotation, {
       onSave: async (a, newComment) => {
         try {
           const updated = await this.api.updateAnnotation(a.id, { comment: newComment });
@@ -2822,8 +3672,8 @@ var _Instruckt = class _Instruckt {
   }
   // ── Keyboard ──────────────────────────────────────────────────
   onKeydown(e) {
-    var _a, _b, _c, _d, _e, _f;
-    if ((_a = this.toolbar) == null ? void 0 : _a.isMinimized()) return;
+    var _a2, _b, _c, _d, _e, _f;
+    if ((_a2 = this.toolbar) == null ? void 0 : _a2.isMinimized()) return;
     const target = e.target;
     if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
     if (target.closest('[contenteditable="true"]')) return;
@@ -2899,8 +3749,8 @@ No open annotations.`;
       lines.push("");
       const hPrefix = multiPage ? "###" : "##";
       annotations.forEach((a, i) => {
-        var _a, _b, _c;
-        const componentSuffix = ((_a = a.framework) == null ? void 0 : _a.component) ? ` in \`${a.framework.component}\`` : "";
+        var _a2, _b, _c;
+        const componentSuffix = ((_a2 = a.framework) == null ? void 0 : _a2.component) ? ` in \`${a.framework.component}\`` : "";
         lines.push(`${hPrefix} ${i + 1}. ${a.comment}`);
         lines.push(`- Element: \`${a.element}\`${componentSuffix}`);
         if ((_c = (_b = a.framework) == null ? void 0 : _b.data) == null ? void 0 : _c.file) {
@@ -2931,13 +3781,13 @@ No open annotations.`;
     return [...this.annotations];
   }
   destroy() {
-    var _a, _b, _c, _d;
+    var _a2, _b, _c, _d;
     this.setAnnotating(false);
     this.setFrozen(false);
     document.removeEventListener("keydown", this.boundKeydown);
     window.removeEventListener("scroll", this.boundReposition);
     window.removeEventListener("resize", this.boundReposition);
-    (_a = this.toolbar) == null ? void 0 : _a.destroy();
+    (_a2 = this.toolbar) == null ? void 0 : _a2.destroy();
     (_b = this.highlight) == null ? void 0 : _b.destroy();
     (_c = this.popup) == null ? void 0 : _c.destroy();
     (_d = this.markers) == null ? void 0 : _d.destroy();

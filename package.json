@@ -34,6 +34,6 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "html-to-image": "^1.11.13"
+    "modern-screenshot": "^4.6.8"
   }
 }

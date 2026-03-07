@@ -135,6 +135,14 @@ export const TOOLBAR_CSS = /* css */ `
   width: 6px;
   height: 100%;
 }
+/* Clear-page tooltip shows above-left so it doesn't cover the clear-all button */
+.clear-wrap > .btn:first-child[data-tooltip]::before {
+  right: 0;
+  left: auto;
+  top: auto;
+  bottom: calc(100% + 8px);
+  transform: none;
+}
 .clear-wrap:hover .clear-all-btn { display: flex; align-items: center; justify-content: center; }
 
 .fab {

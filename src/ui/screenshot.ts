@@ -1,48 +1,124 @@
-import { toPng } from 'html-to-image'
+import { domToPng } from 'modern-screenshot'
+
+/** Filter out instruckt UI elements */
+function nodeFilter(node: HTMLElement): boolean {
+  if (node.getAttribute?.('data-instruckt')) return false
+  return true
+}
+
+/** Detect if the page uses shadow DOM (Flux UI, Shoelace, etc.) that breaks DOM-to-image */
+function hasShadowDOM(): boolean {
+  // Check for adopted stylesheets on the document (Flux UI pattern)
+  if (document.adoptedStyleSheets?.length) return true
+  // Check for any custom elements with shadow roots
+  const el = document.querySelector('[data-flux], flux\\:button, flux\\:input, [is]')
+  if (el) return true
+  // Quick check: any element with an open shadow root
+  const body = document.body
+  for (const child of body.querySelectorAll('*')) {
+    if (child.shadowRoot) return true
+  }
+  return false
+}
+
+let _useScreenCapture: boolean | null = null
+
+/** Returns true if we should skip DOM-to-image and go straight to Screen Capture API */
+function shouldUseScreenCapture(): boolean {
+  if (_useScreenCapture === null) {
+    _useScreenCapture = hasShadowDOM()
+  }
+  return _useScreenCapture
+}
+
+// ── Screen Capture API fallback ──────────────────────────────
+
+let activeStream: MediaStream | null = null
+
+async function getStream(): Promise<MediaStream> {
+  if (activeStream && activeStream.active) return activeStream
+  activeStream = await navigator.mediaDevices.getDisplayMedia({
+    video: { displaySurface: 'browser' },
+    preferCurrentTab: true,
+  } as any)
+  activeStream.getVideoTracks()[0].addEventListener('ended', () => {
+    activeStream = null
+  })
+  return activeStream
+}
+
+async function grabFrame(stream: MediaStream): Promise<ImageBitmap> {
+  const video = document.createElement('video')
+  video.srcObject = stream
+  video.muted = true
+  await video.play()
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+  const bitmap = await createImageBitmap(video)
+  video.pause()
+  video.srcObject = null
+  return bitmap
+}
+
+function captureRectFromStream(stream: MediaStream, rect: DOMRect): Promise<string> {
+  return grabFrame(stream).then(bitmap => {
+    const dpr = window.devicePixelRatio || 1
+    const canvas = document.createElement('canvas')
+    canvas.width = rect.width * dpr
+    canvas.height = rect.height * dpr
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(
+      bitmap,
+      rect.x * dpr, rect.y * dpr,
+      rect.width * dpr, rect.height * dpr,
+      0, 0, canvas.width, canvas.height,
+    )
+    bitmap.close()
+    return canvas.toDataURL('image/png')
+  })
+}
+
+// ── Public API ───────────────────────────────────────────────
 
 /** Capture a DOM element as a base64 PNG data URL */
 export async function captureElement(el: Element): Promise<string | null> {
+  if (!shouldUseScreenCapture()) {
+    // Try modern-screenshot first (no permission needed, works on plain DOM)
+    try {
+      const dataUrl = await domToPng(el as HTMLElement, {
+        scale: 2,
+        filter: nodeFilter,
+      })
+      if (dataUrl) return dataUrl
+    } catch { /* fall through */ }
+  }
+  // Screen Capture API — works everywhere including shadow DOM / Flux
   try {
-    return await toPng(el as HTMLElement, {
-      cacheBust: true,
-      pixelRatio: 2,
-      skipFonts: true,
-      filter: (node: HTMLElement) => {
-        // Skip instruckt UI elements from the capture
-        if (node.getAttribute?.('data-instruckt')) return false
-        // Skip cross-origin link elements (external stylesheets cause SecurityError)
-        if (node.tagName === 'LINK' && node.getAttribute('rel') === 'stylesheet') {
-          const href = node.getAttribute('href') ?? ''
-          if (href.startsWith('http') && !href.startsWith(window.location.origin)) return false
-        }
-        return true
-      },
-    })
-  } catch {
+    const stream = await getStream()
+    return await captureRectFromStream(stream, el.getBoundingClientRect())
+  } catch (err) {
+    console.warn('[instruckt] captureElement failed:', err)
     return null
   }
 }
 
 /** Capture a rectangular region of the viewport as a base64 PNG data URL */
 export async function captureRegion(rect: DOMRect): Promise<string | null> {
+  if (!shouldUseScreenCapture()) {
+    // Try modern-screenshot first (no permission needed, works on plain DOM)
+    try {
+      const full = await domToPng(document.body, {
+        scale: 2,
+        filter: nodeFilter,
+      })
+      if (full) return await cropImage(full, rect)
+    } catch { /* fall through */ }
+  }
+  // Screen Capture API — works everywhere including shadow DOM / Flux
   try {
-    const full = await toPng(document.body, {
-      cacheBust: true,
-      pixelRatio: 2,
-      skipFonts: true,
-      filter: (node: HTMLElement) => {
-        if (node.getAttribute?.('data-instruckt')) return false
-        if (node.tagName === 'LINK' && node.getAttribute('rel') === 'stylesheet') {
-          const href = node.getAttribute('href') ?? ''
-          if (href.startsWith('http') && !href.startsWith(window.location.origin)) return false
-        }
-        return true
-      },
-    })
-
-    // Crop the full capture to the selected region
-    return await cropImage(full, rect)
-  } catch {
+    const stream = await getStream()
+    return await captureRectFromStream(stream, rect)
+  } catch (err) {
+    console.warn('[instruckt] captureRegion failed:', err)
     return null
   }
 }
@@ -52,7 +128,7 @@ function cropImage(dataUrl: string, rect: DOMRect): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => {
-      const ratio = 2 // matches pixelRatio above
+      const ratio = 2
       const canvas = document.createElement('canvas')
       canvas.width = rect.width * ratio
       canvas.height = rect.height * ratio

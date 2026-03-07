@@ -63,6 +63,8 @@ final class AnnotationController
 
         abort_unless(file_exists($path), 404);
 
-        return response()->file($path, ['Content-Type' => 'image/png']);
+        $contentType = str_ends_with($filename, '.svg') ? 'image/svg+xml' : 'image/png';
+
+        return response()->file($path, ['Content-Type' => $contentType]);
     }
 }
