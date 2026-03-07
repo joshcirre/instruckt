@@ -7,6 +7,7 @@ namespace Instruckt\Laravel\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Instruckt\Laravel\Store;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 final class AnnotationController
 {
@@ -54,5 +55,14 @@ final class AnnotationController
         $annotation = Store::updateAnnotation($id, $data);
 
         return response()->json($annotation);
+    }
+
+    public function screenshot(string $filename): BinaryFileResponse
+    {
+        $path = storage_path("app/_instruckt/screenshots/{$filename}");
+
+        abort_unless(file_exists($path), 404);
+
+        return response()->file($path, ['Content-Type' => 'image/png']);
     }
 }

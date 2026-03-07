@@ -5,12 +5,17 @@
             function boot() {
                 if (window.__instruckt) return;
                 if (typeof Instruckt === 'undefined') return;
-                window.__instruckt = Instruckt.init({
+                var opts = {
                     endpoint: @json($endpoint),
                     adapters: {!! $adapters !!},
                     theme: @json($theme),
                     position: @json($position),
-                });
+                };
+                var colors = {!! $colors !!};
+                var keys = {!! $keys !!};
+                if (Object.keys(colors).length) opts.colors = colors;
+                if (Object.keys(keys).length) opts.keys = keys;
+                window.__instruckt = Instruckt.init(opts);
             }
 
             var s = document.createElement('script');

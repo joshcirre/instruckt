@@ -49,6 +49,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Marker pin colors
+    |--------------------------------------------------------------------------
+    | Customize the colors of annotation marker pins on the page.
+    | All values are CSS color strings. Leave empty for defaults.
+    */
+    'colors' => [
+        // 'default'    => '#6366f1',  // indigo — standard annotations
+        // 'screenshot' => '#22c55e',  // green — annotations with screenshots
+        // 'dismissed'  => '#71717a',  // gray — dismissed annotations
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Keyboard shortcuts
+    |--------------------------------------------------------------------------
+    | Customize the keyboard shortcuts. Values are single key characters.
+    | Leave empty for defaults.
+    */
+    'keys' => [
+        // 'annotate'   => 'a',  // toggle annotation mode
+        // 'freeze'     => 'f',  // freeze page
+        // 'screenshot' => 'c',  // region screenshot capture
+        // 'clearPage'  => 'x',  // clear annotations on current page
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | MCP tool name prefix
     |--------------------------------------------------------------------------
     */

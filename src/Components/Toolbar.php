@@ -18,17 +18,25 @@ final class Toolbar extends Component
 
     public string $position;
 
+    public string $colors;
+
+    public string $keys;
+
     public function __construct(
         string $endpoint = '',
         /** @var array<string> $adapters */
         array $adapters = ['livewire', 'vue', 'svelte'],
         string $theme = 'auto',
         string $position = 'bottom-right',
+        ?array $colors = null,
+        ?array $keys = null,
     ) {
         $this->endpoint = $endpoint ?: url(config('instruckt.route_prefix', 'instruckt'));
         $this->adapters = json_encode($adapters);
         $this->theme = $theme;
         $this->position = $position;
+        $this->colors = json_encode($colors ?? config('instruckt.colors', []));
+        $this->keys = json_encode($keys ?? config('instruckt.keys', []));
         $this->scriptSrc = $this->resolveScriptSrc();
     }
 

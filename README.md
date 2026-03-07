@@ -74,6 +74,12 @@ The package registers these MCP tools for your AI agent:
 
 ## Configuration
 
+Publish the config file to customize:
+
+```bash
+php artisan vendor:publish --tag=instruckt-config
+```
+
 Published to `config/instruckt.php`:
 
 ```php
@@ -89,6 +95,21 @@ return [
 
     // Override JS source (e.g. pinned CDN version)
     'cdn_url' => env('INSTRUCKT_CDN_URL', null),
+
+    // Marker pin colors (CSS color strings)
+    'colors' => [
+        // 'default'    => '#6366f1',  // indigo — standard annotations
+        // 'screenshot' => '#22c55e',  // green — annotations with screenshots
+        // 'dismissed'  => '#71717a',  // gray — dismissed
+    ],
+
+    // Keyboard shortcuts (single key characters)
+    'keys' => [
+        // 'annotate'   => 'a',  // toggle annotation mode
+        // 'freeze'     => 'f',  // freeze page
+        // 'screenshot' => 'c',  // region screenshot capture
+        // 'clearPage'  => 'x',  // clear current page
+    ],
 ];
 ```
 
@@ -101,8 +122,12 @@ The `<x-instruckt-toolbar />` component accepts optional attributes:
     theme="dark"
     position="bottom-left"
     :adapters="['livewire', 'vue']"
+    :colors="['default' => '#6366f1', 'screenshot' => '#22c55e', 'dismissed' => '#71717a']"
+    :keys="['annotate' => 'a', 'freeze' => 'f']"
 />
 ```
+
+You can also set colors and keys globally via `config/instruckt.php` instead of passing them as component attributes.
 
 ## How It Works
 
@@ -124,6 +149,8 @@ All routes are registered under the configured prefix (default: `/instruckt`):
 | PATCH | `/instruckt/annotations/{id}` | Update annotation |
 
 ## Keyboard Shortcuts
+
+Default shortcuts (customizable via `keys` config):
 
 | Key | Action |
 |-----|--------|
