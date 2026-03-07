@@ -36,6 +36,24 @@ interface Annotation {
     resolvedAt?: string;
     resolvedBy?: 'human' | 'agent';
 }
+interface MarkerColors {
+    /** Default marker color. Default: '#6366f1' (indigo) */
+    default?: string;
+    /** Screenshot marker color. Default: '#22c55e' (green) */
+    screenshot?: string;
+    /** Dismissed marker color. Default: '#71717a' */
+    dismissed?: string;
+}
+interface KeyBindings {
+    /** Toggle annotate mode. Default: 'a' */
+    annotate?: string;
+    /** Toggle freeze. Default: 'f' */
+    freeze?: string;
+    /** Region screenshot. Default: 'c' */
+    screenshot?: string;
+    /** Clear page annotations. Default: 'x' */
+    clearPage?: string;
+}
 interface InstrucktConfig {
     /** URL to POST annotations to. Default: '/instruckt' */
     endpoint: string;
@@ -45,6 +63,10 @@ interface InstrucktConfig {
     theme?: 'light' | 'dark' | 'auto';
     /** Position of the toolbar. Default: 'bottom-right' */
     position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+    /** Customize marker pin colors */
+    colors?: MarkerColors;
+    /** Customize keyboard shortcuts */
+    keys?: KeyBindings;
     /** Callbacks */
     onAnnotationAdd?: (annotation: Annotation) => void;
     onAnnotationResolve?: (annotation: Annotation) => void;
@@ -79,6 +101,8 @@ declare class Instruckt {
     private loadAnnotations;
     private saveToStorage;
     private loadFromStorage;
+    /** Start or stop polling based on whether there are active annotations */
+    private updatePolling;
     /** Poll API for status changes (e.g. agent resolved via MCP) */
     private pollForChanges;
     private syncMarkers;

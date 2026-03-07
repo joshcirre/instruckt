@@ -42,6 +42,26 @@ export interface Annotation {
   resolvedBy?: 'human' | 'agent'
 }
 
+export interface MarkerColors {
+  /** Default marker color. Default: '#6366f1' (indigo) */
+  default?: string
+  /** Screenshot marker color. Default: '#22c55e' (green) */
+  screenshot?: string
+  /** Dismissed marker color. Default: '#71717a' */
+  dismissed?: string
+}
+
+export interface KeyBindings {
+  /** Toggle annotate mode. Default: 'a' */
+  annotate?: string
+  /** Toggle freeze. Default: 'f' */
+  freeze?: string
+  /** Region screenshot. Default: 'c' */
+  screenshot?: string
+  /** Clear page annotations. Default: 'x' */
+  clearPage?: string
+}
+
 export interface InstrucktConfig {
   /** URL to POST annotations to. Default: '/instruckt' */
   endpoint: string
@@ -51,6 +71,10 @@ export interface InstrucktConfig {
   theme?: 'light' | 'dark' | 'auto'
   /** Position of the toolbar. Default: 'bottom-right' */
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
+  /** Customize marker pin colors */
+  colors?: MarkerColors
+  /** Customize keyboard shortcuts */
+  keys?: KeyBindings
   /** Callbacks */
   onAnnotationAdd?: (annotation: Annotation) => void
   onAnnotationResolve?: (annotation: Annotation) => void

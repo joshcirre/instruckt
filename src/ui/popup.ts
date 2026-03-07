@@ -17,6 +17,15 @@ interface EditCallbacks {
   onDelete: (annotation: Annotation) => void
 }
 
+/** Resolve screenshot URL from annotation data */
+function screenshotUrl(screenshot: string | undefined, endpoint?: string): string | null {
+  if (!screenshot) return null
+  if (screenshot.startsWith('data:')) return screenshot
+  // Backend path like "screenshots/01ABC.png" — serve via endpoint
+  const base = endpoint ?? '/instruckt'
+  return `${base}/${screenshot}`
+}
+
 function esc(s: string): string {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
@@ -141,7 +150,7 @@ export class AnnotationPopup {
 
   // ── Edit existing annotation ──────────────────────────────────
 
-  showEdit(annotation: Annotation, callbacks: EditCallbacks): void {
+  showEdit(annotation: Annotation, callbacks: EditCallbacks, endpoint?: string): void {
     this.destroy()
     this.host = document.createElement('div')
     this.host.setAttribute('data-instruckt', 'popup')
@@ -158,14 +167,19 @@ export class AnnotationPopup {
     const fwBadge = annotation.framework
       ? `<div class="fw-badge">${esc(annotation.framework.component)}</div>`
       : ''
+    const ssUrl = screenshotUrl(annotation.screenshot, endpoint)
+    const screenshotPreview = ssUrl
+      ? `<div class="screenshot-preview screenshot-slot"><img src="${ssUrl}" alt="Screenshot" /><button class="screenshot-remove" title="Remove screenshot">✕</button></div>`
+      : ''
+    const commentText = annotation.comment === '(screenshot)' ? '' : annotation.comment
 
     popup.innerHTML = `
       <div class="header">
         <span class="element-tag" title="${esc(annotation.elementPath)}">${esc(annotation.element)}</span>
         <button class="close-btn">✕</button>
       </div>
-      ${fwBadge}
-      <textarea rows="3">${esc(annotation.comment)}</textarea>
+      ${fwBadge}${screenshotPreview}
+      <textarea rows="3">${esc(commentText)}</textarea>
       <div class="actions">
         <button class="btn-danger" data-action="delete">Remove</button>
         <button class="btn-primary" data-action="save">Save</button>
@@ -173,6 +187,15 @@ export class AnnotationPopup {
     `
 
     popup.querySelector('.close-btn')!.addEventListener('click', () => this.destroy())
+
+    // Screenshot remove button
+    const ssRemoveBtn = popup.querySelector('.screenshot-remove')
+    ssRemoveBtn?.addEventListener('click', () => {
+      callbacks.onSave(annotation, annotation.comment)
+      // Remove screenshot visually
+      const slot = popup.querySelector('.screenshot-slot')
+      if (slot) slot.remove()
+    })
 
     const textarea = popup.querySelector('textarea')!
     const saveBtn = popup.querySelector<HTMLButtonElement>('[data-action="save"]')!

@@ -55,7 +55,7 @@ export class Instruckt {
   }
 
   private init(): void {
-    injectGlobalStyles()
+    injectGlobalStyles(this.config.colors)
 
     if (this.config.theme !== 'auto') {
       document.documentElement.setAttribute('data-instruckt-theme', this.config.theme)
@@ -73,7 +73,7 @@ export class Instruckt {
       onClearPage: () => this.clearPage(),
       onClearAll: () => this.clearEverything(),
       onMinimize: (min) => this.onMinimize(min),
-    })
+    }, this.config.keys)
 
     this.highlight = new ElementHighlight()
     this.popup = new AnnotationPopup()
@@ -92,8 +92,6 @@ export class Instruckt {
 
     // Load persisted annotations from the backend
     this.loadAnnotations()
-    // Poll for changes (e.g. agent resolved via MCP)
-    this.pollTimer = setInterval(() => this.pollForChanges(), 3000)
 
     this.syncMarkers()
   }
@@ -140,7 +138,7 @@ export class Instruckt {
     // Re-inject global styles (Livewire may have swapped <head> content)
     const existing = document.getElementById('instruckt-global')
     if (existing) existing.remove()
-    injectGlobalStyles()
+    injectGlobalStyles(this.config.colors)
 
     this.syncMarkers()
 
@@ -201,6 +199,17 @@ export class Instruckt {
     } catch { /* corrupt or unavailable */ }
   }
 
+  /** Start or stop polling based on whether there are active annotations */
+  private updatePolling(): void {
+    const hasActive = this.totalActiveCount() > 0
+    if (hasActive && !this.pollTimer) {
+      this.pollTimer = setInterval(() => this.pollForChanges(), 3000)
+    } else if (!hasActive && this.pollTimer) {
+      clearInterval(this.pollTimer)
+      this.pollTimer = null
+    }
+  }
+
   /** Poll API for status changes (e.g. agent resolved via MCP) */
   private async pollForChanges(): Promise<void> {
     try {
@@ -237,6 +246,7 @@ export class Instruckt {
     }
     this.toolbar?.setAnnotationCount(this.pageAnnotations().length)
     this.toolbar?.setTotalCount(this.totalActiveCount())
+    this.updatePolling()
   }
 
   private annotationPageKey(a: Annotation): string {
@@ -636,7 +646,7 @@ export class Instruckt {
         } catch { /* no backend — just remove locally */ }
         this.removeAnnotation(a.id)
       },
-    })
+    }, this.config.endpoint)
   }
 
   private onAnnotationUpdated(updated: Annotation): void {
@@ -690,16 +700,18 @@ export class Instruckt {
     // Shadow DOM retargets e.target to the host element — check if a popup is open
     if (this.isInstruckt(target)) return
 
-    if (e.key === 'a' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    const keys = this.config.keys ?? {}
+    const noMod = !e.metaKey && !e.ctrlKey && !e.altKey
+    if (e.key === (keys.annotate ?? 'a') && noMod) {
       this.setAnnotating(!this.isAnnotating)
     }
-    if (e.key === 'f' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (e.key === (keys.freeze ?? 'f') && noMod) {
       this.setFrozen(!this.isFrozen)
     }
-    if (e.key === 'c' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (e.key === (keys.screenshot ?? 'c') && noMod) {
       this.startRegionCapture()
     }
-    if (e.key === 'x' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (e.key === (keys.clearPage ?? 'x') && noMod) {
       this.clearPage()
     }
     if (e.key === 'Escape') {

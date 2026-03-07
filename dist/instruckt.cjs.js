@@ -178,6 +178,24 @@ var TOOLBAR_CSS = (
 }
 .btn svg { display: block; }
 .btn:hover { background: var(--ik-bg2); color: var(--ik-text); }
+.btn[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--ik-text);
+  color: var(--ik-bg);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .1s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.btn[data-tooltip]:hover::before { opacity: 1; }
 .btn.active { background: var(--ik-accent); color: #fff; }
 .btn.active:hover { background: var(--ik-accent-h); }
 
@@ -217,24 +235,7 @@ var TOOLBAR_CSS = (
   box-shadow: var(--ik-shadow);
   border-radius: 8px;
 }
-/* Instant tooltip */
-.clear-all-btn::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  right: calc(100% + 6px);
-  top: 50%;
-  transform: translateY(-50%);
-  white-space: nowrap;
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: var(--ik-text);
-  color: var(--ik-bg);
-  pointer-events: none;
-  opacity: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-.clear-all-btn:hover::before { opacity: 1; }
+/* clear-all tooltip inherits from .btn[data-tooltip]::before */
 /* Invisible bridge so hover doesn't break crossing the gap */
 .clear-all-btn::after {
   content: '';
@@ -401,6 +402,7 @@ var POPUP_CSS = (
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--ik-border);
+  margin-bottom: 10px;
 }
 .screenshot-preview img {
   display: block;
@@ -489,27 +491,29 @@ var MARKER_CSS = (
   z-index: 2147483645;
   width: 24px; height: 24px;
   border-radius: 50%;
-  background: #6366f1;
+  background: var(--ik-marker-default, #6366f1);
   color: #fff;
   font-size: 11px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(99,102,241,.4);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--ik-marker-default, #6366f1) 40%, transparent);
   transition: transform .15s ease;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   pointer-events: all;
   user-select: none;
 }
 .ik-marker:hover { transform: scale(1.15); }
-.ik-marker.resolved  { background: #22c55e; box-shadow: 0 2px 8px rgba(34,197,94,.4); }
-.ik-marker.dismissed { background: #71717a; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.ik-marker.has-screenshot { background: var(--ik-marker-screenshot, #22c55e); box-shadow: 0 2px 8px color-mix(in srgb, var(--ik-marker-screenshot, #22c55e) 40%, transparent); }
+.ik-marker.dismissed { background: var(--ik-marker-dismissed, #71717a); box-shadow: 0 2px 8px rgba(0,0,0,.2); }
 `
 );
-function injectGlobalStyles() {
+function injectGlobalStyles(colors) {
   if (document.getElementById("instruckt-global")) return;
+  const vars = colors ? `:root {${colors.default ? ` --ik-marker-default: ${colors.default};` : ""}${colors.screenshot ? ` --ik-marker-screenshot: ${colors.screenshot};` : ""}${colors.dismissed ? ` --ik-marker-dismissed: ${colors.dismissed};` : ""} }
+` : "";
   const style = document.createElement("style");
   style.id = "instruckt-global";
-  style.textContent = GLOBAL_CSS + MARKER_CSS;
+  style.textContent = vars + GLOBAL_CSS + MARKER_CSS;
   document.head.appendChild(style);
 }
 
@@ -525,7 +529,7 @@ var ICONS = {
   logo: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>`
 };
 var Toolbar = class {
-  constructor(position, callbacks) {
+  constructor(position, callbacks, keys) {
     this.position = position;
     this.callbacks = callbacks;
     this.fabBadge = null;
@@ -535,11 +539,12 @@ var Toolbar = class {
     this.totalCount = 0;
     this.dragging = false;
     this.dragOffset = { x: 0, y: 0 };
+    this.keys = keys != null ? keys : {};
     this.build();
     this.setupDrag();
   }
   build() {
-    var _a;
+    var _a, _b, _c, _d, _e;
     this.host = document.createElement("div");
     this.host.setAttribute("data-instruckt", "toolbar");
     this.shadow = this.host.attachShadow({ mode: "open" });
@@ -548,17 +553,18 @@ var Toolbar = class {
     this.shadow.appendChild(style);
     this.toolbarEl = document.createElement("div");
     this.toolbarEl.className = "toolbar";
-    this.annotateBtn = this.makeBtn(ICONS.annotate, "Annotate elements (A)", () => {
+    const k = this.keys;
+    this.annotateBtn = this.makeBtn(ICONS.annotate, `Annotate elements (${((_a = k.annotate) != null ? _a : "A").toUpperCase()})`, () => {
       const next = !this.annotateActive;
       this.setAnnotateActive(next);
       this.callbacks.onToggleAnnotate(next);
     });
-    this.freezeBtn = this.makeBtn(ICONS.freeze, "Freeze page (F)", () => {
+    this.freezeBtn = this.makeBtn(ICONS.freeze, `Freeze page (${((_b = k.freeze) != null ? _b : "F").toUpperCase()})`, () => {
       const next = !this.freezeActive;
       this.setFreezeActive(next);
       this.callbacks.onFreezeAnimations(next);
     });
-    const screenshotBtn = this.makeBtn(ICONS.screenshot, "Screenshot region (C)", () => {
+    const screenshotBtn = this.makeBtn(ICONS.screenshot, `Screenshot region (${((_c = k.screenshot) != null ? _c : "C").toUpperCase()})`, () => {
       this.callbacks.onScreenshot();
     });
     this.copyBtn = this.makeBtn(ICONS.copy, "Copy annotations as markdown", () => {
@@ -570,22 +576,20 @@ var Toolbar = class {
     });
     const clearWrap = document.createElement("div");
     clearWrap.className = "clear-wrap";
-    const clearBtn = this.makeBtn(ICONS.clear, "Clear this page (X)", () => {
-      var _a2, _b;
-      (_b = (_a2 = this.callbacks).onClearPage) == null ? void 0 : _b.call(_a2);
+    const clearBtn = this.makeBtn(ICONS.clear, `Clear this page (${((_d = k.clearPage) != null ? _d : "X").toUpperCase()})`, () => {
+      var _a2, _b2;
+      (_b2 = (_a2 = this.callbacks).onClearPage) == null ? void 0 : _b2.call(_a2);
     });
     clearBtn.classList.add("danger-btn");
     const clearAllBtn = this.makeBtn(
       `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
       "Delete all instructions.",
       () => {
-        var _a2, _b;
-        return (_b = (_a2 = this.callbacks).onClearAll) == null ? void 0 : _b.call(_a2);
+        var _a2, _b2;
+        return (_b2 = (_a2 = this.callbacks).onClearAll) == null ? void 0 : _b2.call(_a2);
       }
     );
     clearAllBtn.classList.add("danger-btn", "clear-all-btn");
-    clearAllBtn.removeAttribute("title");
-    clearAllBtn.setAttribute("data-tooltip", "Delete all instructions.");
     clearWrap.appendChild(clearBtn);
     clearWrap.appendChild(clearAllBtn);
     const minimizeBtn = this.makeBtn(ICONS.minimize, "Minimize toolbar", () => {
@@ -624,14 +628,14 @@ var Toolbar = class {
     this.host.addEventListener("mousedown", (e) => e.stopPropagation());
     this.host.addEventListener("pointerdown", (e) => e.stopPropagation());
     this.applyPosition();
-    const root = (_a = document.getElementById("instruckt-root")) != null ? _a : document.body;
+    const root = (_e = document.getElementById("instruckt-root")) != null ? _e : document.body;
     root.appendChild(this.host);
   }
-  makeBtn(iconHtml, title, onClick) {
+  makeBtn(iconHtml, tooltip, onClick) {
     const btn = document.createElement("button");
     btn.className = "btn";
-    btn.title = title;
-    btn.setAttribute("aria-label", title);
+    btn.setAttribute("data-tooltip", tooltip);
+    btn.setAttribute("aria-label", tooltip);
     btn.innerHTML = iconHtml;
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -1723,6 +1727,12 @@ function selectRegion() {
 }
 
 // src/ui/popup.ts
+function screenshotUrl(screenshot, endpoint) {
+  if (!screenshot) return null;
+  if (screenshot.startsWith("data:")) return screenshot;
+  const base = endpoint != null ? endpoint : "/instruckt";
+  return `${base}/${screenshot}`;
+}
 function esc(s) {
   return String(s != null ? s : "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -1833,7 +1843,7 @@ var AnnotationPopup = class {
     textarea.focus();
   }
   // ── Edit existing annotation ──────────────────────────────────
-  showEdit(annotation, callbacks) {
+  showEdit(annotation, callbacks, endpoint) {
     var _a;
     this.destroy();
     this.host = document.createElement("div");
@@ -1846,19 +1856,28 @@ var AnnotationPopup = class {
     const popup = document.createElement("div");
     popup.className = "popup";
     const fwBadge = annotation.framework ? `<div class="fw-badge">${esc(annotation.framework.component)}</div>` : "";
+    const ssUrl = screenshotUrl(annotation.screenshot, endpoint);
+    const screenshotPreview = ssUrl ? `<div class="screenshot-preview screenshot-slot"><img src="${ssUrl}" alt="Screenshot" /><button class="screenshot-remove" title="Remove screenshot">\u2715</button></div>` : "";
+    const commentText = annotation.comment === "(screenshot)" ? "" : annotation.comment;
     popup.innerHTML = `
       <div class="header">
         <span class="element-tag" title="${esc(annotation.elementPath)}">${esc(annotation.element)}</span>
         <button class="close-btn">\u2715</button>
       </div>
-      ${fwBadge}
-      <textarea rows="3">${esc(annotation.comment)}</textarea>
+      ${fwBadge}${screenshotPreview}
+      <textarea rows="3">${esc(commentText)}</textarea>
       <div class="actions">
         <button class="btn-danger" data-action="delete">Remove</button>
         <button class="btn-primary" data-action="save">Save</button>
       </div>
     `;
     popup.querySelector(".close-btn").addEventListener("click", () => this.destroy());
+    const ssRemoveBtn = popup.querySelector(".screenshot-remove");
+    ssRemoveBtn == null ? void 0 : ssRemoveBtn.addEventListener("click", () => {
+      callbacks.onSave(annotation, annotation.comment);
+      const slot = popup.querySelector(".screenshot-slot");
+      if (slot) slot.remove();
+    });
     const textarea = popup.querySelector("textarea");
     const saveBtn = popup.querySelector('[data-action="save"]');
     const deleteBtn = popup.querySelector('[data-action="delete"]');
@@ -1953,9 +1972,10 @@ var AnnotationMarkers = class {
       return;
     }
     const el = document.createElement("div");
-    el.className = `ik-marker ${this.statusClass(annotation.status)}`;
+    const ssClass = annotation.screenshot ? " has-screenshot" : "";
+    el.className = `ik-marker ${this.statusClass(annotation.status)}${ssClass}`;
     el.textContent = String(index);
-    el.title = annotation.comment.slice(0, 60);
+    el.title = annotation.comment === "(screenshot)" ? "Screenshot" : annotation.comment.slice(0, 60);
     el.style.pointerEvents = "all";
     el.style.left = `${annotation.x / 100 * window.innerWidth}px`;
     el.style.top = `${annotation.y - window.scrollY}px`;
@@ -1973,8 +1993,9 @@ var AnnotationMarkers = class {
     this.updateStyle(marker.el, annotation);
   }
   updateStyle(el, annotation) {
-    el.className = `ik-marker ${this.statusClass(annotation.status)}`;
-    el.title = annotation.comment.slice(0, 60);
+    const ssClass = annotation.screenshot ? " has-screenshot" : "";
+    el.className = `ik-marker ${this.statusClass(annotation.status)}${ssClass}`;
+    el.title = annotation.comment === "(screenshot)" ? "Screenshot" : annotation.comment.slice(0, 60);
   }
   statusClass(status) {
     if (status === "resolved") return "resolved";
@@ -2354,7 +2375,7 @@ var _Instruckt = class _Instruckt {
     this.init();
   }
   init() {
-    injectGlobalStyles();
+    injectGlobalStyles(this.config.colors);
     if (this.config.theme !== "auto") {
       document.documentElement.setAttribute("data-instruckt-theme", this.config.theme);
     }
@@ -2370,7 +2391,7 @@ var _Instruckt = class _Instruckt {
       onClearPage: () => this.clearPage(),
       onClearAll: () => this.clearEverything(),
       onMinimize: (min) => this.onMinimize(min)
-    });
+    }, this.config.keys);
     this.highlight = new ElementHighlight();
     this.popup = new AnnotationPopup();
     this.markers = new AnnotationMarkers((annotation) => this.onMarkerClick(annotation));
@@ -2383,7 +2404,6 @@ var _Instruckt = class _Instruckt {
       setTimeout(() => this.reattach(), 0);
     });
     this.loadAnnotations();
-    this.pollTimer = setInterval(() => this.pollForChanges(), 3e3);
     this.syncMarkers();
   }
   makeToolbarCallbacks() {
@@ -2418,7 +2438,7 @@ var _Instruckt = class _Instruckt {
     if (wasMinimized) this.markers.setVisible(false);
     const existing = document.getElementById("instruckt-global");
     if (existing) existing.remove();
-    injectGlobalStyles();
+    injectGlobalStyles(this.config.colors);
     this.syncMarkers();
     if (wasAnnotating && !wasMinimized) this.setAnnotating(true);
   }
@@ -2463,6 +2483,16 @@ var _Instruckt = class _Instruckt {
     } catch (e) {
     }
   }
+  /** Start or stop polling based on whether there are active annotations */
+  updatePolling() {
+    const hasActive = this.totalActiveCount() > 0;
+    if (hasActive && !this.pollTimer) {
+      this.pollTimer = setInterval(() => this.pollForChanges(), 3e3);
+    } else if (!hasActive && this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
   /** Poll API for status changes (e.g. agent resolved via MCP) */
   async pollForChanges() {
     try {
@@ -2499,6 +2529,7 @@ var _Instruckt = class _Instruckt {
     }
     (_c = this.toolbar) == null ? void 0 : _c.setAnnotationCount(this.pageAnnotations().length);
     (_d = this.toolbar) == null ? void 0 : _d.setTotalCount(this.totalActiveCount());
+    this.updatePolling();
   }
   annotationPageKey(a) {
     try {
@@ -2773,7 +2804,7 @@ var _Instruckt = class _Instruckt {
         }
         this.removeAnnotation(a.id);
       }
-    });
+    }, this.config.endpoint);
   }
   onAnnotationUpdated(updated) {
     const idx = this.annotations.findIndex((a) => a.id === updated.id);
@@ -2815,22 +2846,24 @@ var _Instruckt = class _Instruckt {
   }
   // ── Keyboard ──────────────────────────────────────────────────
   onKeydown(e) {
-    var _a;
+    var _a, _b, _c, _d, _e, _f;
     if ((_a = this.toolbar) == null ? void 0 : _a.isMinimized()) return;
     const target = e.target;
     if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
     if (target.closest('[contenteditable="true"]')) return;
     if (this.isInstruckt(target)) return;
-    if (e.key === "a" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    const keys = (_b = this.config.keys) != null ? _b : {};
+    const noMod = !e.metaKey && !e.ctrlKey && !e.altKey;
+    if (e.key === ((_c = keys.annotate) != null ? _c : "a") && noMod) {
       this.setAnnotating(!this.isAnnotating);
     }
-    if (e.key === "f" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (e.key === ((_d = keys.freeze) != null ? _d : "f") && noMod) {
       this.setFrozen(!this.isFrozen);
     }
-    if (e.key === "c" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (e.key === ((_e = keys.screenshot) != null ? _e : "c") && noMod) {
       this.startRegionCapture();
     }
-    if (e.key === "x" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (e.key === ((_f = keys.clearPage) != null ? _f : "x") && noMod) {
       this.clearPage();
     }
     if (e.key === "Escape") {

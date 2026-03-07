@@ -36,9 +36,10 @@ export class AnnotationMarkers {
     }
 
     const el = document.createElement('div')
-    el.className = `ik-marker ${this.statusClass(annotation.status)}`
+    const ssClass = annotation.screenshot ? ' has-screenshot' : ''
+    el.className = `ik-marker ${this.statusClass(annotation.status)}${ssClass}`
     el.textContent = String(index)
-    el.title = annotation.comment.slice(0, 60)
+    el.title = annotation.comment === '(screenshot)' ? 'Screenshot' : annotation.comment.slice(0, 60)
     el.style.pointerEvents = 'all'
 
     // Position: annotation.x is % of viewport width, annotation.y is px from top (scroll-adjusted)
@@ -63,8 +64,9 @@ export class AnnotationMarkers {
   }
 
   private updateStyle(el: HTMLElement, annotation: Annotation): void {
-    el.className = `ik-marker ${this.statusClass(annotation.status)}`
-    el.title = annotation.comment.slice(0, 60)
+    const ssClass = annotation.screenshot ? ' has-screenshot' : ''
+    el.className = `ik-marker ${this.statusClass(annotation.status)}${ssClass}`
+    el.title = annotation.comment === '(screenshot)' ? 'Screenshot' : annotation.comment.slice(0, 60)
   }
 
   private statusClass(status: string): string {

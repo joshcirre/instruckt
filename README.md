@@ -79,12 +79,29 @@ new Instruckt({
   // Toolbar position (default: 'bottom-right')
   position: 'bottom-right',
 
+  // Customize marker pin colors
+  colors: {
+    default: '#6366f1',     // indigo — standard annotations
+    screenshot: '#22c55e',  // green — annotations with screenshots
+    dismissed: '#71717a',   // gray — dismissed annotations
+  },
+
+  // Customize keyboard shortcuts
+  keys: {
+    annotate: 'a',    // toggle annotation mode
+    freeze: 'f',      // freeze page
+    screenshot: 'c',  // region screenshot capture
+    clearPage: 'x',   // clear annotations on this page
+  },
+
   // Callbacks
   onAnnotationAdd: (annotation) => {},
 })
 ```
 
 ## Keyboard Shortcuts
+
+Default shortcuts (customizable via `keys` config):
 
 | Key | Action |
 |-----|--------|

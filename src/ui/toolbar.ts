@@ -1,3 +1,4 @@
+import type { KeyBindings } from '../types'
 import { TOOLBAR_CSS } from './styles'
 
 export type ToolbarMode = 'idle' | 'annotating' | 'frozen'
@@ -41,10 +42,14 @@ export class Toolbar {
   private dragging = false
   private dragOffset = { x: 0, y: 0 }
 
+  private keys: KeyBindings
+
   constructor(
     private readonly position: string,
     private readonly callbacks: ToolbarCallbacks,
+    keys?: KeyBindings,
   ) {
+    this.keys = keys ?? {}
     this.build()
     this.setupDrag()
   }
@@ -62,19 +67,20 @@ export class Toolbar {
     this.toolbarEl = document.createElement('div')
     this.toolbarEl.className = 'toolbar'
 
-    this.annotateBtn = this.makeBtn(ICONS.annotate, 'Annotate elements (A)', () => {
+    const k = this.keys
+    this.annotateBtn = this.makeBtn(ICONS.annotate, `Annotate elements (${(k.annotate ?? 'A').toUpperCase()})`, () => {
       const next = !this.annotateActive
       this.setAnnotateActive(next)
       this.callbacks.onToggleAnnotate(next)
     })
 
-    this.freezeBtn = this.makeBtn(ICONS.freeze, 'Freeze page (F)', () => {
+    this.freezeBtn = this.makeBtn(ICONS.freeze, `Freeze page (${(k.freeze ?? 'F').toUpperCase()})`, () => {
       const next = !this.freezeActive
       this.setFreezeActive(next)
       this.callbacks.onFreezeAnimations(next)
     })
 
-    const screenshotBtn = this.makeBtn(ICONS.screenshot, 'Screenshot region (C)', () => {
+    const screenshotBtn = this.makeBtn(ICONS.screenshot, `Screenshot region (${(k.screenshot ?? 'C').toUpperCase()})`, () => {
       this.callbacks.onScreenshot()
     })
 
@@ -87,7 +93,7 @@ export class Toolbar {
     const clearWrap = document.createElement('div')
     clearWrap.className = 'clear-wrap'
 
-    const clearBtn = this.makeBtn(ICONS.clear, 'Clear this page (X)', () => {
+    const clearBtn = this.makeBtn(ICONS.clear, `Clear this page (${(k.clearPage ?? 'X').toUpperCase()})`, () => {
       this.callbacks.onClearPage?.()
     })
     clearBtn.classList.add('danger-btn')
@@ -98,8 +104,6 @@ export class Toolbar {
       () => this.callbacks.onClearAll?.(),
     )
     clearAllBtn.classList.add('danger-btn', 'clear-all-btn')
-    clearAllBtn.removeAttribute('title')
-    clearAllBtn.setAttribute('data-tooltip', 'Delete all instructions.')
 
     clearWrap.appendChild(clearBtn)
     clearWrap.appendChild(clearAllBtn)
@@ -142,11 +146,11 @@ export class Toolbar {
     root.appendChild(this.host)
   }
 
-  private makeBtn(iconHtml: string, title: string, onClick: () => void): HTMLButtonElement {
+  private makeBtn(iconHtml: string, tooltip: string, onClick: () => void): HTMLButtonElement {
     const btn = document.createElement('button')
     btn.className = 'btn'
-    btn.title = title
-    btn.setAttribute('aria-label', title)
+    btn.setAttribute('data-tooltip', tooltip)
+    btn.setAttribute('aria-label', tooltip)
     btn.innerHTML = iconHtml
     btn.addEventListener('click', (e) => {
       e.stopPropagation()

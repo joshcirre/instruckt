@@ -68,6 +68,24 @@ export const TOOLBAR_CSS = /* css */ `
 }
 .btn svg { display: block; }
 .btn:hover { background: var(--ik-bg2); color: var(--ik-text); }
+.btn[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--ik-text);
+  color: var(--ik-bg);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .1s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.btn[data-tooltip]:hover::before { opacity: 1; }
 .btn.active { background: var(--ik-accent); color: #fff; }
 .btn.active:hover { background: var(--ik-accent-h); }
 
@@ -107,24 +125,7 @@ export const TOOLBAR_CSS = /* css */ `
   box-shadow: var(--ik-shadow);
   border-radius: 8px;
 }
-/* Instant tooltip */
-.clear-all-btn::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  right: calc(100% + 6px);
-  top: 50%;
-  transform: translateY(-50%);
-  white-space: nowrap;
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: var(--ik-text);
-  color: var(--ik-bg);
-  pointer-events: none;
-  opacity: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-.clear-all-btn:hover::before { opacity: 1; }
+/* clear-all tooltip inherits from .btn[data-tooltip]::before */
 /* Invisible bridge so hover doesn't break crossing the gap */
 .clear-all-btn::after {
   content: '';
@@ -290,6 +291,7 @@ export const POPUP_CSS = /* css */ `
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--ik-border);
+  margin-bottom: 10px;
 }
 .screenshot-preview img {
   display: block;
@@ -377,27 +379,30 @@ export const MARKER_CSS = /* css */ `
   z-index: 2147483645;
   width: 24px; height: 24px;
   border-radius: 50%;
-  background: #6366f1;
+  background: var(--ik-marker-default, #6366f1);
   color: #fff;
   font-size: 11px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(99,102,241,.4);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--ik-marker-default, #6366f1) 40%, transparent);
   transition: transform .15s ease;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   pointer-events: all;
   user-select: none;
 }
 .ik-marker:hover { transform: scale(1.15); }
-.ik-marker.resolved  { background: #22c55e; box-shadow: 0 2px 8px rgba(34,197,94,.4); }
-.ik-marker.dismissed { background: #71717a; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.ik-marker.has-screenshot { background: var(--ik-marker-screenshot, #22c55e); box-shadow: 0 2px 8px color-mix(in srgb, var(--ik-marker-screenshot, #22c55e) 40%, transparent); }
+.ik-marker.dismissed { background: var(--ik-marker-dismissed, #71717a); box-shadow: 0 2px 8px rgba(0,0,0,.2); }
 `
 
 /** Inject styles into document.head (idempotent) */
-export function injectGlobalStyles(): void {
+export function injectGlobalStyles(colors?: import('../types').MarkerColors): void {
   if (document.getElementById('instruckt-global')) return
+  const vars = colors
+    ? `:root {${colors.default ? ` --ik-marker-default: ${colors.default};` : ''}${colors.screenshot ? ` --ik-marker-screenshot: ${colors.screenshot};` : ''}${colors.dismissed ? ` --ik-marker-dismissed: ${colors.dismissed};` : ''} }\n`
+    : ''
   const style = document.createElement('style')
   style.id = 'instruckt-global'
-  style.textContent = GLOBAL_CSS + MARKER_CSS
+  style.textContent = vars + GLOBAL_CSS + MARKER_CSS
   document.head.appendChild(style)
 }
