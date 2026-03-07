@@ -24,13 +24,24 @@ This publishes the config, copies the JS assets, and automatically configures MC
 
 ## Setup
 
+### Livewire / Blade
+
 Add the toolbar component to your layout (typically before `</body>`):
 
 ```blade
 <x-instruckt-toolbar />
 ```
 
-That's it. The component loads the JS and initializes instruckt with sensible defaults.
+### Inertia (React / Vue / Svelte)
+
+Add the import to your `resources/js/app.tsx` (or `.ts`, `.jsx`, `.js`):
+
+```ts
+import { Instruckt } from 'instruckt';
+new Instruckt({ endpoint: '/instruckt' });
+```
+
+The install command auto-detects Inertia and adds this for you.
 
 ### Connect Your AI Agent
 
