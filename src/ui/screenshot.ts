@@ -6,14 +6,13 @@ function nodeFilter(node: HTMLElement): boolean {
   return true
 }
 
-/** Detect if the page uses shadow DOM (Flux UI, Shoelace, etc.) that breaks DOM-to-image */
+/** Detect if the page uses shadow DOM with adopted stylesheets (Flux UI, Shoelace, etc.)
+ *  that breaks DOM-to-image. Note: document.adoptedStyleSheets alone is NOT sufficient —
+ *  Tailwind v4's Vite plugin uses it for all apps in dev mode. We need actual shadow roots. */
 function hasShadowDOM(): boolean {
-  // Check for adopted stylesheets on the document (Flux UI pattern)
-  if (document.adoptedStyleSheets?.length) return true
-  // Check for any custom elements with shadow roots
-  const el = document.querySelector('[data-flux], flux\\:button, flux\\:input, [is]')
-  if (el) return true
-  // Quick check: any non-instruckt element with an open shadow root
+  // Check for Flux UI elements (most common case)
+  if (document.querySelector('[data-flux], flux\\:button, flux\\:input')) return true
+  // Check for non-instruckt shadow roots (web components, Shoelace, etc.)
   for (const child of document.body.querySelectorAll('*')) {
     if (child.shadowRoot && !child.hasAttribute('data-instruckt')) return true
   }

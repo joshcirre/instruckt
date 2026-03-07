@@ -2349,10 +2349,7 @@ function nodeFilter(node) {
   return true;
 }
 function hasShadowDOM() {
-  var _a2;
-  if ((_a2 = document.adoptedStyleSheets) == null ? void 0 : _a2.length) return true;
-  const el = document.querySelector("[data-flux], flux\\:button, flux\\:input, [is]");
-  if (el) return true;
+  if (document.querySelector("[data-flux], flux\\:button, flux\\:input")) return true;
   for (const child of document.body.querySelectorAll("*")) {
     if (child.shadowRoot && !child.hasAttribute("data-instruckt")) return true;
   }
