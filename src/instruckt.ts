@@ -38,6 +38,7 @@ export class Instruckt {
   private pendingMouseTarget: Element | null = null
   private highlightLocked = false
   private pollTimer: ReturnType<typeof setInterval> | null = null
+  private initialLoadDone = false
   private boundKeydown: (e: KeyboardEvent) => void
   private boundReposition = (): void => {
     this.markers?.reposition(this.annotations)
@@ -164,7 +165,7 @@ export class Instruckt {
 
   // ── Persistence ─────────────────────────────────────────────────
 
-  private static STORAGE_KEY = 'instruckt:annotations'
+  private static STORAGE_KEY = `instruckt:${window.location.origin}:annotations`
 
   private async loadAnnotations(): Promise<void> {
     // Always load localStorage first as baseline
@@ -180,6 +181,7 @@ export class Instruckt {
     } catch {
       // No backend — localStorage already loaded above
     }
+    this.initialLoadDone = true
     this.syncMarkers()
   }
 
@@ -198,6 +200,10 @@ export class Instruckt {
 
   /** Start or stop polling based on whether there are active annotations */
   private updatePolling(): void {
+    // Don't start polling until the initial backend fetch has completed —
+    // stale localStorage may show phantom active annotations.
+    if (!this.initialLoadDone) return
+
     const hasActive = this.totalActiveCount() > 0
     if (hasActive && !this.pollTimer) {
       this.pollTimer = setInterval(() => this.pollForChanges(), 3000)

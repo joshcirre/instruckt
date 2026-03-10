@@ -94,6 +94,7 @@ declare class Instruckt {
     private pendingMouseTarget;
     private highlightLocked;
     private pollTimer;
+    private initialLoadDone;
     private boundKeydown;
     private boundReposition;
     constructor(config: InstrucktConfig);

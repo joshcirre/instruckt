@@ -3152,6 +3152,7 @@ var _Instruckt = class _Instruckt {
     this.pendingMouseTarget = null;
     this.highlightLocked = false;
     this.pollTimer = null;
+    this.initialLoadDone = false;
     this.boundReposition = () => {
       var _a2;
       (_a2 = this.markers) == null ? void 0 : _a2.reposition(this.annotations);
@@ -3340,6 +3341,7 @@ var _Instruckt = class _Instruckt {
       this.saveToStorage();
     } catch (e) {
     }
+    this.initialLoadDone = true;
     this.syncMarkers();
   }
   saveToStorage() {
@@ -3357,6 +3359,7 @@ var _Instruckt = class _Instruckt {
   }
   /** Start or stop polling based on whether there are active annotations */
   updatePolling() {
+    if (!this.initialLoadDone) return;
     const hasActive = this.totalActiveCount() > 0;
     if (hasActive && !this.pollTimer) {
       this.pollTimer = setInterval(() => this.pollForChanges(), 3e3);
@@ -3858,7 +3861,7 @@ No open annotations.`;
   }
 };
 // ── Persistence ─────────────────────────────────────────────────
-_Instruckt.STORAGE_KEY = "instruckt:annotations";
+_Instruckt.STORAGE_KEY = `instruckt:${window.location.origin}:annotations`;
 var Instruckt = _Instruckt;
 
 // src/index.ts
