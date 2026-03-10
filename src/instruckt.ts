@@ -173,13 +173,11 @@ export class Instruckt {
 
     try {
       const remote = await this.api.getAnnotations()
-      if (remote.length > 0) {
-        // Merge: remote is source of truth, but keep any local-only annotations
-        const remoteIds = new Set(remote.map(a => a.id))
-        const localOnly = this.annotations.filter(a => !remoteIds.has(a.id))
-        this.annotations = [...remote, ...localOnly]
-        this.saveToStorage()
-      }
+      // Merge: remote is source of truth, but keep any local-only annotations
+      const remoteIds = new Set(remote.map(a => a.id))
+      const localOnly = this.annotations.filter(a => !remoteIds.has(a.id))
+      this.annotations = [...remote, ...localOnly]
+      this.saveToStorage()
     } catch {
       // No backend — localStorage already loaded above
     }

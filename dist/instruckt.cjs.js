@@ -3288,12 +3288,10 @@ var _Instruckt = class _Instruckt {
     this.loadFromStorage();
     try {
       const remote = await this.api.getAnnotations();
-      if (remote.length > 0) {
-        const remoteIds = new Set(remote.map((a) => a.id));
-        const localOnly = this.annotations.filter((a) => !remoteIds.has(a.id));
-        this.annotations = [...remote, ...localOnly];
-        this.saveToStorage();
-      }
+      const remoteIds = new Set(remote.map((a) => a.id));
+      const localOnly = this.annotations.filter((a) => !remoteIds.has(a.id));
+      this.annotations = [...remote, ...localOnly];
+      this.saveToStorage();
     } catch (e) {
     }
     this.syncMarkers();
