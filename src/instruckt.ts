@@ -91,10 +91,8 @@ export class Instruckt {
       setTimeout(() => this.reattach(), 0)
     })
 
-    // Load persisted annotations from the backend
+    // Load persisted annotations from the backend (async — calls syncMarkers when done)
     this.loadAnnotations()
-
-    this.syncMarkers()
   }
 
   private makeToolbarCallbacks() {
@@ -225,8 +223,10 @@ export class Instruckt {
       }
       if (changed) {
         this.saveToStorage()
-        this.syncMarkers()
       }
+      // Always re-evaluate polling — even if no status changed, the active
+      // count may have dropped to zero (e.g. after loadAnnotations merged).
+      this.syncMarkers()
     } catch { /* no backend or network error — skip */ }
   }
 

@@ -3303,7 +3303,6 @@ var _Instruckt = class _Instruckt {
       setTimeout(() => this.reattach(), 0);
     });
     this.loadAnnotations();
-    this.syncMarkers();
   }
   makeToolbarCallbacks() {
     return {
@@ -3406,8 +3405,8 @@ var _Instruckt = class _Instruckt {
       }
       if (changed) {
         this.saveToStorage();
-        this.syncMarkers();
       }
+      this.syncMarkers();
     } catch (e) {
     }
   }
