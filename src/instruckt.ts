@@ -12,6 +12,7 @@ import * as livewireAdapter from './adapters/livewire'
 import * as vueAdapter from './adapters/vue'
 import * as svelteAdapter from './adapters/svelte'
 import * as reactAdapter from './adapters/react'
+import * as bladeAdapter from './adapters/blade'
 
 // Re-export for api.ts consumers
 export type { AnnotationPayload }
@@ -44,7 +45,7 @@ export class Instruckt {
 
   constructor(config: InstrucktConfig) {
     this.config = {
-      adapters: ['livewire', 'vue', 'svelte', 'react'],
+      adapters: ['livewire', 'vue', 'svelte', 'react', 'blade'],
       theme: 'auto',
       position: 'bottom-right',
       ...config,
@@ -583,6 +584,11 @@ export class Instruckt {
       const ctx = reactAdapter.getContext(el)
       if (ctx) return ctx
     }
+    // Blade is last — it's a fallback when no JS framework claims the element
+    if (adapters.includes('blade')) {
+      const ctx = bladeAdapter.getContext(el)
+      if (ctx) return ctx
+    }
     return null
   }
 
@@ -779,10 +785,14 @@ export class Instruckt {
         // Feedback-first heading with element context
         const componentSuffix = a.framework?.component ? ` in \`${a.framework.component}\`` : ''
         lines.push(`${hPrefix} ${i + 1}. ${a.comment}`)
+        lines.push(`- ID: \`${a.id}\``)
         lines.push(`- Element: \`${a.element}\`${componentSuffix}`)
 
-        // File path if available (e.g. Svelte)
-        if (a.framework?.data?.file) {
+        // Source file path (resolved server-side or from framework dev mode)
+        if (a.framework?.source_file) {
+          const loc = a.framework.source_line ? `${a.framework.source_file}:${a.framework.source_line}` : a.framework.source_file
+          lines.push(`- Source: \`${loc}\``)
+        } else if (a.framework?.data?.file) {
           lines.push(`- File: \`${a.framework.data.file}\``)
         }
 

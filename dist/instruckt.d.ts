@@ -2,10 +2,14 @@ type AnnotationIntent = 'fix' | 'change' | 'question' | 'approve';
 type AnnotationSeverity = 'blocking' | 'important' | 'suggestion';
 type AnnotationStatus = 'pending' | 'resolved' | 'dismissed';
 interface FrameworkContext {
-    framework: 'livewire' | 'vue' | 'svelte' | 'react';
+    framework: 'livewire' | 'vue' | 'svelte' | 'react' | 'blade';
     component: string;
     data?: Record<string, unknown>;
+    source_file?: string;
+    source_line?: number;
     wire_id?: string;
+    class_name?: string;
+    render_line?: number;
     component_uid?: string;
 }
 interface BoundingBox {
@@ -58,7 +62,7 @@ interface InstrucktConfig {
     /** URL to POST annotations to. Default: '/instruckt' */
     endpoint: string;
     /** Framework adapters to activate. Default: auto-detect */
-    adapters?: Array<'livewire' | 'vue' | 'svelte' | 'react'>;
+    adapters?: Array<'livewire' | 'vue' | 'svelte' | 'react' | 'blade'>;
     /** Theme preference. Default: 'auto' */
     theme?: 'light' | 'dark' | 'auto';
     /** Position of the toolbar. Default: 'bottom-right' */

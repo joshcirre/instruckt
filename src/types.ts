@@ -3,11 +3,16 @@ export type AnnotationSeverity = 'blocking' | 'important' | 'suggestion'
 export type AnnotationStatus = 'pending' | 'resolved' | 'dismissed'
 
 export interface FrameworkContext {
-  framework: 'livewire' | 'vue' | 'svelte' | 'react'
+  framework: 'livewire' | 'vue' | 'svelte' | 'react' | 'blade'
   component: string
   data?: Record<string, unknown>
+  // Source location (resolved client-side in dev mode, or server-side)
+  source_file?: string
+  source_line?: number
   // Livewire-specific
   wire_id?: string
+  class_name?: string
+  render_line?: number
   // Vue-specific
   component_uid?: string
 }
@@ -66,7 +71,7 @@ export interface InstrucktConfig {
   /** URL to POST annotations to. Default: '/instruckt' */
   endpoint: string
   /** Framework adapters to activate. Default: auto-detect */
-  adapters?: Array<'livewire' | 'vue' | 'svelte' | 'react'>
+  adapters?: Array<'livewire' | 'vue' | 'svelte' | 'react' | 'blade'>
   /** Theme preference. Default: 'auto' */
   theme?: 'light' | 'dark' | 'auto'
   /** Position of the toolbar. Default: 'bottom-right' */

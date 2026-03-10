@@ -2925,43 +2925,70 @@ function detect(el) {
   return null;
 }
 function getContext(el) {
-  var _a2, _b;
+  var _a2, _b, _c, _d, _e;
   if (!isAvailable()) return null;
   const wireEl = detect(el);
   if (!wireEl) return null;
   const wireId = wireEl.getAttribute("wire:id");
   let componentName = "Unknown";
+  let className;
   const snapshotAttr = wireEl.getAttribute("wire:snapshot");
   if (snapshotAttr) {
     try {
       const snapshot = JSON.parse(snapshotAttr);
       componentName = (_b = (_a2 = snapshot == null ? void 0 : snapshot.memo) == null ? void 0 : _a2.name) != null ? _b : "Unknown";
+      className = (_e = (_c = snapshot == null ? void 0 : snapshot.memo) == null ? void 0 : _c.path) != null ? _e : (_d = snapshot == null ? void 0 : snapshot.memo) == null ? void 0 : _d.name;
     } catch (e) {
     }
   }
   return {
     framework: "livewire",
     component: componentName,
-    wire_id: wireId
+    wire_id: wireId,
+    class_name: className
   };
 }
 
 // src/adapters/vue.ts
+function isUserFile(file) {
+  if (!file) return false;
+  return !file.includes("node_modules");
+}
+function getInstanceFile(instance) {
+  var _a2, _b, _c;
+  return (_c = (_a2 = instance.type) == null ? void 0 : _a2.__file) != null ? _c : (_b = instance.$options) == null ? void 0 : _b.__file;
+}
+function getInstanceName(instance) {
+  var _a2, _b, _c, _d, _e, _f, _g, _h;
+  return (_h = (_g = (_e = (_c = (_a2 = instance.$options) == null ? void 0 : _a2.name) != null ? _c : (_b = instance.$options) == null ? void 0 : _b.__name) != null ? _e : (_d = instance.type) == null ? void 0 : _d.name) != null ? _g : (_f = instance.type) == null ? void 0 : _f.__name) != null ? _h : "Anonymous";
+}
 function detect2(el) {
   var _a2;
+  let firstMatch = null;
   let node = el;
   while (node && node !== document.documentElement) {
     const instance = (_a2 = node.__vueParentComponent) != null ? _a2 : node.__vue__;
-    if (instance) return instance;
+    if (instance) {
+      const file = getInstanceFile(instance);
+      if (isUserFile(file)) return instance;
+      if (!firstMatch) firstMatch = instance;
+    }
     node = node.parentElement;
   }
-  return null;
+  if (firstMatch == null ? void 0 : firstMatch.parent) {
+    let instance = firstMatch.parent;
+    while (instance) {
+      const file = getInstanceFile(instance);
+      if (isUserFile(file)) return instance;
+      instance = instance.parent;
+    }
+  }
+  return firstMatch;
 }
 function getContext2(el) {
-  var _a2, _b, _c, _d, _e, _f, _g, _h;
   const instance = detect2(el);
   if (!instance) return null;
-  const name = (_h = (_g = (_e = (_c = (_a2 = instance.$options) == null ? void 0 : _a2.name) != null ? _c : (_b = instance.$options) == null ? void 0 : _b.__name) != null ? _e : (_d = instance.type) == null ? void 0 : _d.name) != null ? _g : (_f = instance.type) == null ? void 0 : _f.__name) != null ? _h : "Anonymous";
+  const name = getInstanceName(instance);
   const data = {};
   if (instance.props) {
     Object.assign(data, instance.props);
@@ -2977,9 +3004,11 @@ function getContext2(el) {
       }
     }
   }
+  const file = getInstanceFile(instance);
   return {
     framework: "vue",
     component: name,
+    source_file: file,
     component_uid: instance.uid !== void 0 ? String(instance.uid) : void 0,
     data
   };
@@ -3003,6 +3032,7 @@ function getContext3(el) {
   return {
     framework: "svelte",
     component,
+    source_file: filePath || void 0,
     data: filePath ? { file: filePath } : void 0
   };
 }
@@ -3016,20 +3046,31 @@ function getFiberKey(el) {
   }
   return null;
 }
-function getComponentName(fiber) {
+function isUserSource(source) {
+  if (!source) return false;
+  return !source.fileName.includes("node_modules");
+}
+function findComponent(fiber) {
+  let firstMatch = null;
   let node = fiber;
   while (node) {
     const { type } = node;
+    let name = null;
     if (typeof type === "function" && type.name) {
-      const name = type.name;
-      if (name[0] === name[0].toUpperCase() && name.length > 1) return name;
+      const n = type.name;
+      if (n[0] === n[0].toUpperCase() && n.length > 1) name = n;
     }
-    if (typeof type === "object" && type !== null && type.displayName) {
-      return type.displayName;
+    if (!name && typeof type === "object" && type !== null && type.displayName) {
+      name = type.displayName;
+    }
+    if (name) {
+      const info = { name, source: node._debugSource };
+      if (isUserSource(node._debugSource)) return info;
+      if (!firstMatch) firstMatch = info;
     }
     node = node.return;
   }
-  return "Component";
+  return firstMatch != null ? firstMatch : { name: "Component" };
 }
 function getProps(fiber) {
   var _a2, _b;
@@ -3052,14 +3093,44 @@ function getContext4(el) {
     if (key) {
       const fiber = node[key];
       if (fiber) {
-        const component = getComponentName(fiber);
+        const { name, source } = findComponent(fiber);
         const data = getProps(fiber);
-        return { framework: "react", component, data };
+        return {
+          framework: "react",
+          component: name,
+          source_file: source == null ? void 0 : source.fileName,
+          source_line: source == null ? void 0 : source.lineNumber,
+          data
+        };
       }
     }
     node = node.parentElement;
   }
   return null;
+}
+
+// src/adapters/blade.ts
+function getTrackedViews() {
+  var _a2;
+  const el = document.getElementById("instruckt-views");
+  if (!el) return [];
+  try {
+    return JSON.parse((_a2 = el.textContent) != null ? _a2 : "[]");
+  } catch (e) {
+    return [];
+  }
+}
+function getContext5(_el) {
+  var _a2;
+  const views = getTrackedViews();
+  if (views.length === 0) return null;
+  const pageView = views.length > 1 ? (_a2 = views.find((v) => !v.name.startsWith("layouts.") && !v.name.startsWith("components."))) != null ? _a2 : views[views.length - 1] : views[0];
+  return {
+    framework: "blade",
+    component: pageView.name,
+    source_file: pageView.file,
+    data: { views: views.map((v) => v.file) }
+  };
 }
 
 // src/instruckt.ts
@@ -3170,7 +3241,7 @@ var _Instruckt = class _Instruckt {
       this.showAnnotationPopup(pending);
     };
     this.config = __spreadValues({
-      adapters: ["livewire", "vue", "svelte", "react"],
+      adapters: ["livewire", "vue", "svelte", "react", "blade"],
       theme: "auto",
       position: "bottom-right"
     }, config);
@@ -3550,6 +3621,10 @@ var _Instruckt = class _Instruckt {
       const ctx = getContext4(el);
       if (ctx) return ctx;
     }
+    if (adapters.includes("blade")) {
+      const ctx = getContext5(el);
+      if (ctx) return ctx;
+    }
     return null;
   }
   // ── Submit ────────────────────────────────────────────────────
@@ -3725,11 +3800,15 @@ No open annotations.`;
       lines.push("");
       const hPrefix = multiPage ? "###" : "##";
       annotations.forEach((a, i) => {
-        var _a2, _b, _c;
+        var _a2, _b, _c, _d;
         const componentSuffix = ((_a2 = a.framework) == null ? void 0 : _a2.component) ? ` in \`${a.framework.component}\`` : "";
         lines.push(`${hPrefix} ${i + 1}. ${a.comment}`);
+        lines.push(`- ID: \`${a.id}\``);
         lines.push(`- Element: \`${a.element}\`${componentSuffix}`);
-        if ((_c = (_b = a.framework) == null ? void 0 : _b.data) == null ? void 0 : _c.file) {
+        if ((_b = a.framework) == null ? void 0 : _b.source_file) {
+          const loc = a.framework.source_line ? `${a.framework.source_file}:${a.framework.source_line}` : a.framework.source_file;
+          lines.push(`- Source: \`${loc}\``);
+        } else if ((_d = (_c = a.framework) == null ? void 0 : _c.data) == null ? void 0 : _d.file) {
           lines.push(`- File: \`${a.framework.data.file}\``);
         }
         if (a.cssClasses) {
