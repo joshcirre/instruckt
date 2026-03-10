@@ -7,7 +7,7 @@ import { AnnotationPopup } from './ui/popup'
 import { AnnotationMarkers } from './ui/markers'
 import { injectGlobalStyles } from './ui/styles'
 import { getElementSelector, getElementName, getElementLabel, getNearbyText, getCssClasses, getPageBoundingBox } from './selector'
-import { captureElement, captureRegion, selectRegion } from './ui/screenshot'
+import { captureElement, captureRegion, selectRegion, setPreferScreenCapture } from './ui/screenshot'
 import * as livewireAdapter from './adapters/livewire'
 import * as vueAdapter from './adapters/vue'
 import * as svelteAdapter from './adapters/svelte'
@@ -58,6 +58,13 @@ export class Instruckt {
 
   private init(): void {
     injectGlobalStyles(this.config.colors)
+
+    // Livewire / Flux use shadow DOM which breaks DOM-to-image screenshot libs.
+    // When Livewire is detected, go straight to Screen Capture API.
+    const adapters = this.config.adapters ?? []
+    if (adapters.includes('livewire') && livewireAdapter.isAvailable()) {
+      setPreferScreenCapture(true)
+    }
 
     if (this.config.theme !== 'auto') {
       document.documentElement.setAttribute('data-instruckt-theme', this.config.theme)

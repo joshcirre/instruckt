@@ -2393,14 +2393,20 @@ function captureRectFromStream(stream, rect) {
     return canvas.toDataURL("image/png");
   });
 }
+var preferScreenCapture = false;
+function setPreferScreenCapture(value) {
+  preferScreenCapture = value;
+}
 async function captureElement(el) {
-  try {
-    const dataUrl = await domToPng(el, {
-      scale: 2,
-      filter: nodeFilter
-    });
-    if (dataUrl) return dataUrl;
-  } catch (e) {
+  if (!preferScreenCapture) {
+    try {
+      const dataUrl = await domToPng(el, {
+        scale: 2,
+        filter: nodeFilter
+      });
+      if (dataUrl) return dataUrl;
+    } catch (e) {
+    }
   }
   try {
     const stream = await getStream();
@@ -2411,13 +2417,15 @@ async function captureElement(el) {
   }
 }
 async function captureRegion(rect) {
-  try {
-    const full = await domToPng(document.body, {
-      scale: 2,
-      filter: nodeFilter
-    });
-    if (full) return await cropImage(full, rect);
-  } catch (e) {
+  if (!preferScreenCapture) {
+    try {
+      const full = await domToPng(document.body, {
+        scale: 2,
+        filter: nodeFilter
+      });
+      if (full) return await cropImage(full, rect);
+    } catch (e) {
+    }
   }
   try {
     const stream = await getStream();
@@ -3251,7 +3259,12 @@ var _Instruckt = class _Instruckt {
     this.init();
   }
   init() {
+    var _a2;
     injectGlobalStyles(this.config.colors);
+    const adapters = (_a2 = this.config.adapters) != null ? _a2 : [];
+    if (adapters.includes("livewire") && isAvailable()) {
+      setPreferScreenCapture(true);
+    }
     if (this.config.theme !== "auto") {
       document.documentElement.setAttribute("data-instruckt-theme", this.config.theme);
     }
