@@ -16,7 +16,9 @@ Or load via CDN:
 <script src="https://cdn.jsdelivr.net/npm/instruckt/dist/instruckt.iife.js"></script>
 ```
 
-## Quick Start: Vite Plugin
+## Quick Start
+
+### Vite Plugin
 
 The easiest way to use instruckt is with the Vite plugin. It handles client injection and provides a built-in dev API server — no backend required.
 
@@ -30,6 +32,33 @@ export default defineConfig({
 ```
 
 That's it for SPA apps (Vue, React, Svelte with Vite). The plugin auto-injects the client via `transformIndexHtml`.
+
+### Laravel
+
+Use the **[instruckt-laravel](https://github.com/joshcirre/instruckt-laravel)** package — it provides the backend API, MCP tools, JSON file storage, and handles install/uninstall automatically:
+
+```bash
+composer require joshcirre/instruckt-laravel --dev
+php artisan instruckt:install
+```
+
+The install command adds the Vite plugin to your `vite.config.js` with `server: false` (Laravel owns the backend), configures MCP for your AI agent, and adds the virtual import to your JS entry point.
+
+```js
+// vite.config.js (added automatically by install command)
+import instruckt from 'instruckt/vite'
+
+export default defineConfig({
+  plugins: [
+    laravel({ input: ['resources/js/app.js'] }),
+    instruckt({
+      server: false,
+      adapters: ['livewire', 'blade'],
+      mcp: true,
+    }),
+  ],
+})
+```
 
 ### SSR Frameworks (SvelteKit, Nuxt, etc.)
 
@@ -45,35 +74,11 @@ import 'virtual:instruckt'
 
 The virtual module is SSR-safe — it only initializes in the browser.
 
-### Laravel
+### Astro
 
-The Vite plugin works alongside the Laravel package. Set `server: false` so Laravel handles the backend:
+See **[instruckt-astro](https://github.com/sgasser/instruckt-astro)** for a community-maintained Astro integration.
 
-```js
-// vite.config.ts
-import laravel from 'laravel-vite-plugin'
-import instruckt from 'instruckt/vite'
-
-export default defineConfig({
-  plugins: [
-    laravel({ input: ['resources/js/app.js'] }),
-    instruckt({
-      server: false,
-      adapters: ['livewire', 'blade'],
-      mcp: true,
-    }),
-  ],
-})
-```
-
-Then in your app entry:
-
-```js
-// resources/js/app.js
-import 'virtual:instruckt'
-```
-
-### Vite Plugin Options
+## Vite Plugin Options
 
 ```js
 instruckt({
@@ -237,10 +242,6 @@ export default function RootLayout({ children }) {
 
 </details>
 
-### Astro
-
-See **[instruckt-astro](https://github.com/sgasser/instruckt-astro)** for a community-maintained Astro integration.
-
 ## How It Works
 
 1. A floating toolbar appears in your app
@@ -355,7 +356,7 @@ The Vite plugin includes a dev API server that saves annotations and screenshots
 
 ### Laravel
 
-**[instruckt-laravel](https://github.com/joshcirre/instruckt-laravel)** — Laravel package with JSON file storage, MCP tools, Blade component, and API routes.
+**[instruckt-laravel](https://github.com/joshcirre/instruckt-laravel)** — Laravel package with JSON file storage, MCP tools, Blade component, and API routes. Includes `artisan instruckt:install` which auto-configures the Vite plugin, MCP, and agent skills.
 
 ### Custom Backend
 
