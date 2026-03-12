@@ -10,12 +10,6 @@ Framework-agnostic JS core with adapters for Livewire, Vue, Svelte, and React.
 npm install instruckt
 ```
 
-Or load via CDN:
-
-```html
-<script src="https://cdn.jsdelivr.net/npm/instruckt/dist/instruckt.iife.js"></script>
-```
-
 ## Quick Start
 
 ### Vite Plugin
@@ -123,15 +117,6 @@ import { Instruckt } from 'instruckt'
 const instruckt = new Instruckt({
   endpoint: '/instruckt',
 })
-```
-
-Or with the IIFE build:
-
-```html
-<script src="/path/to/instruckt.iife.js"></script>
-<script>
-  Instruckt.init({ endpoint: '/instruckt' })
-</script>
 ```
 
 ### Framework-Specific Manual Setup
