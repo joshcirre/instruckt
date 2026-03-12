@@ -71,6 +71,8 @@ interface InstrucktConfig {
     colors?: MarkerColors;
     /** Customize keyboard shortcuts */
     keys?: KeyBindings;
+    /** Path prefix for screenshots in markdown export. Default: 'storage/app/_instruckt/' */
+    screenshotPath?: string;
     /** Callbacks */
     onAnnotationAdd?: (annotation: Annotation) => void;
     onAnnotationResolve?: (annotation: Annotation) => void;
@@ -95,6 +97,7 @@ declare class Instruckt {
     private highlightLocked;
     private pollTimer;
     private initialLoadDone;
+    private hasBackend;
     private boundKeydown;
     private boundReposition;
     constructor(config: InstrucktConfig);
@@ -102,10 +105,15 @@ declare class Instruckt {
     private makeToolbarCallbacks;
     private reattach;
     private onMinimize;
-    private static STORAGE_KEY;
+    private static get STORAGE_KEY();
     private loadAnnotations;
     private saveToStorage;
     private loadFromStorage;
+    private static readonly IDB_NAME;
+    private static readonly IDB_STORE;
+    private openIdb;
+    private saveScreenshotsToIdb;
+    private loadScreenshotsFromIdb;
     /** Start or stop polling based on whether there are active annotations */
     private updatePolling;
     /** Poll API for status changes (e.g. agent resolved via MCP) */

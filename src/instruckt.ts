@@ -39,6 +39,7 @@ export class Instruckt {
   private highlightLocked = false
   private pollTimer: ReturnType<typeof setInterval> | null = null
   private initialLoadDone = false
+  private hasBackend = false
   private boundKeydown: (e: KeyboardEvent) => void
   private boundReposition = (): void => {
     this.markers?.reposition(this.annotations)
@@ -172,7 +173,9 @@ export class Instruckt {
 
   // ── Persistence ─────────────────────────────────────────────────
 
-  private static STORAGE_KEY = `instruckt:${window.location.origin}:annotations`
+  private static get STORAGE_KEY() {
+    return `instruckt:${window.location.origin}:annotations`
+  }
 
   private async loadAnnotations(): Promise<void> {
     // Always load localStorage first as baseline
@@ -180,6 +183,7 @@ export class Instruckt {
 
     try {
       const remote = await this.api.getAnnotations()
+      this.hasBackend = true
       // Merge: remote is source of truth, but keep any local-only annotations
       const remoteIds = new Set(remote.map(a => a.id))
       const localOnly = this.annotations.filter(a => !remoteIds.has(a.id))
@@ -187,6 +191,7 @@ export class Instruckt {
       this.saveToStorage()
     } catch {
       // No backend — localStorage already loaded above
+      this.hasBackend = false
     }
     this.initialLoadDone = true
     this.syncMarkers()
@@ -194,15 +199,77 @@ export class Instruckt {
 
   private saveToStorage(): void {
     try {
-      localStorage.setItem(Instruckt.STORAGE_KEY, JSON.stringify(this.annotations))
+      // Store screenshot data URIs in IndexedDB to avoid blowing localStorage's ~5MB limit
+      const screenshotMap = new Map<string, string>()
+      const stripped = this.annotations.map(a => {
+        if (a.screenshot?.startsWith('data:')) {
+          screenshotMap.set(a.id, a.screenshot)
+          return { ...a, screenshot: `idb:${a.id}` }
+        }
+        return a
+      })
+      localStorage.setItem(Instruckt.STORAGE_KEY, JSON.stringify(stripped))
+      if (screenshotMap.size > 0) this.saveScreenshotsToIdb(screenshotMap)
     } catch { /* storage full or unavailable */ }
   }
 
   private loadFromStorage(): void {
     try {
       const raw = localStorage.getItem(Instruckt.STORAGE_KEY)
-      if (raw) this.annotations = JSON.parse(raw)
+      if (raw) {
+        this.annotations = JSON.parse(raw)
+        // Restore screenshot data URIs from IndexedDB
+        const idbRefs = this.annotations.filter(a => a.screenshot?.startsWith('idb:'))
+        if (idbRefs.length > 0) this.loadScreenshotsFromIdb(idbRefs)
+      }
     } catch { /* corrupt or unavailable */ }
+  }
+
+  private static readonly IDB_NAME = 'instruckt'
+  private static readonly IDB_STORE = 'screenshots'
+
+  private openIdb(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(Instruckt.IDB_NAME, 1)
+      req.onupgradeneeded = () => {
+        const db = req.result
+        if (!db.objectStoreNames.contains(Instruckt.IDB_STORE)) {
+          db.createObjectStore(Instruckt.IDB_STORE)
+        }
+      }
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+  }
+
+  private async saveScreenshotsToIdb(screenshots: Map<string, string>): Promise<void> {
+    try {
+      const db = await this.openIdb()
+      const tx = db.transaction(Instruckt.IDB_STORE, 'readwrite')
+      const store = tx.objectStore(Instruckt.IDB_STORE)
+      for (const [id, dataUri] of screenshots) {
+        store.put(dataUri, id)
+      }
+      db.close()
+    } catch { /* IndexedDB unavailable */ }
+  }
+
+  private async loadScreenshotsFromIdb(annotations: Annotation[]): Promise<void> {
+    try {
+      const db = await this.openIdb()
+      const tx = db.transaction(Instruckt.IDB_STORE, 'readonly')
+      const store = tx.objectStore(Instruckt.IDB_STORE)
+      for (const a of annotations) {
+        const id = a.screenshot!.replace('idb:', '')
+        const req = store.get(id)
+        req.onsuccess = () => {
+          if (req.result) a.screenshot = req.result
+        }
+      }
+      await new Promise<void>((resolve) => { tx.oncomplete = () => resolve() })
+      db.close()
+      this.syncMarkers()
+    } catch { /* IndexedDB unavailable */ }
   }
 
   /** Start or stop polling based on whether there are active annotations */
@@ -818,26 +885,28 @@ export class Instruckt {
           lines.push(`- Text: "${a.nearbyText.slice(0, 100)}"`)
         }
         if (a.screenshot) {
-          // If stored as a relative path (from backend), show the full path
           if (!a.screenshot.startsWith('data:')) {
+            // Backend-saved file path
             const screenshotPath = this.config.screenshotPath ?? 'storage/app/_instruckt/'
             lines.push(`- Screenshot: \`${screenshotPath}${a.screenshot}\``)
           } else {
-            lines.push(`- Screenshot: attached`)
+            // Inline data URI as a markdown image
+            lines.push(`- Screenshot: ![Screenshot](${a.screenshot})`)
           }
         }
         lines.push('')
       })
     }
 
-    // Add MCP instructions when a backend is configured
-    const hasScreenshots = pending.some(a => a.screenshot && !a.screenshot.startsWith('data:'))
-    lines.push('---')
-    lines.push('')
-    if (hasScreenshots) {
-      lines.push('Use the `instruckt.get_screenshot` MCP tool to view screenshots. After making changes, use `instruckt.resolve` to mark each annotation as resolved.')
-    } else {
-      lines.push('After making changes, use the `instruckt.resolve` MCP tool to mark each annotation as resolved.')
+    if (this.config.mcp) {
+      const hasScreenshots = pending.some(a => a.screenshot && !a.screenshot.startsWith('data:'))
+      lines.push('---')
+      lines.push('')
+      if (hasScreenshots) {
+        lines.push('Use the `instruckt.get_screenshot` MCP tool to view screenshots. After making changes, use `instruckt.resolve` to mark each annotation as resolved.')
+      } else {
+        lines.push('After making changes, use the `instruckt.resolve` MCP tool to mark each annotation as resolved.')
+      }
     }
 
     return lines.join('\n').trim()

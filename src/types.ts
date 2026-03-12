@@ -82,6 +82,8 @@ export interface InstrucktConfig {
   keys?: KeyBindings
   /** Path prefix for screenshots in markdown export. Default: 'storage/app/_instruckt/' */
   screenshotPath?: string
+  /** Whether MCP tools (get_screenshot, resolve) are available. Default: false */
+  mcp?: boolean
   /** Callbacks */
   onAnnotationAdd?: (annotation: Annotation) => void
   onAnnotationResolve?: (annotation: Annotation) => void

@@ -3185,6 +3185,7 @@ var _Instruckt = class _Instruckt {
     this.highlightLocked = false;
     this.pollTimer = null;
     this.initialLoadDone = false;
+    this.hasBackend = false;
     this.boundReposition = () => {
       var _a2;
       (_a2 = this.markers) == null ? void 0 : _a2.reposition(this.annotations);
@@ -3368,29 +3369,97 @@ var _Instruckt = class _Instruckt {
       (_e = this.markers) == null ? void 0 : _e.setVisible(true);
     }
   }
+  // ── Persistence ─────────────────────────────────────────────────
+  static get STORAGE_KEY() {
+    return `instruckt:${window.location.origin}:annotations`;
+  }
   async loadAnnotations() {
     this.loadFromStorage();
     try {
       const remote = await this.api.getAnnotations();
+      this.hasBackend = true;
       const remoteIds = new Set(remote.map((a) => a.id));
       const localOnly = this.annotations.filter((a) => !remoteIds.has(a.id));
       this.annotations = [...remote, ...localOnly];
       this.saveToStorage();
     } catch (e) {
+      this.hasBackend = false;
     }
     this.initialLoadDone = true;
     this.syncMarkers();
   }
   saveToStorage() {
     try {
-      localStorage.setItem(_Instruckt.STORAGE_KEY, JSON.stringify(this.annotations));
+      const screenshotMap = /* @__PURE__ */ new Map();
+      const stripped = this.annotations.map((a) => {
+        var _a2;
+        if ((_a2 = a.screenshot) == null ? void 0 : _a2.startsWith("data:")) {
+          screenshotMap.set(a.id, a.screenshot);
+          return __spreadProps(__spreadValues({}, a), { screenshot: `idb:${a.id}` });
+        }
+        return a;
+      });
+      localStorage.setItem(_Instruckt.STORAGE_KEY, JSON.stringify(stripped));
+      if (screenshotMap.size > 0) this.saveScreenshotsToIdb(screenshotMap);
     } catch (e) {
     }
   }
   loadFromStorage() {
     try {
       const raw = localStorage.getItem(_Instruckt.STORAGE_KEY);
-      if (raw) this.annotations = JSON.parse(raw);
+      if (raw) {
+        this.annotations = JSON.parse(raw);
+        const idbRefs = this.annotations.filter((a) => {
+          var _a2;
+          return (_a2 = a.screenshot) == null ? void 0 : _a2.startsWith("idb:");
+        });
+        if (idbRefs.length > 0) this.loadScreenshotsFromIdb(idbRefs);
+      }
+    } catch (e) {
+    }
+  }
+  openIdb() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(_Instruckt.IDB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(_Instruckt.IDB_STORE)) {
+          db.createObjectStore(_Instruckt.IDB_STORE);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async saveScreenshotsToIdb(screenshots) {
+    try {
+      const db = await this.openIdb();
+      const tx = db.transaction(_Instruckt.IDB_STORE, "readwrite");
+      const store = tx.objectStore(_Instruckt.IDB_STORE);
+      for (const [id, dataUri] of screenshots) {
+        store.put(dataUri, id);
+      }
+      db.close();
+    } catch (e) {
+    }
+  }
+  async loadScreenshotsFromIdb(annotations) {
+    try {
+      const db = await this.openIdb();
+      const tx = db.transaction(_Instruckt.IDB_STORE, "readonly");
+      const store = tx.objectStore(_Instruckt.IDB_STORE);
+      for (const a of annotations) {
+        const id = a.screenshot.replace("idb:", "");
+        const req = store.get(id);
+        req.onsuccess = () => {
+          if (req.result) a.screenshot = req.result;
+        };
+      }
+      await new Promise((resolve) => {
+        tx.oncomplete = () => resolve();
+      });
+      db.close();
+      this.syncMarkers();
     } catch (e) {
     }
   }
@@ -3839,7 +3908,7 @@ No open annotations.`;
       lines.push("");
       const hPrefix = multiPage ? "###" : "##";
       annotations.forEach((a, i) => {
-        var _a2, _b, _c, _d;
+        var _a2, _b, _c, _d, _e;
         const componentSuffix = ((_a2 = a.framework) == null ? void 0 : _a2.component) ? ` in \`${a.framework.component}\`` : "";
         lines.push(`${hPrefix} ${i + 1}. ${a.comment}`);
         lines.push(`- ID: \`${a.id}\``);
@@ -3860,21 +3929,24 @@ No open annotations.`;
         }
         if (a.screenshot) {
           if (!a.screenshot.startsWith("data:")) {
-            lines.push(`- Screenshot: \`storage/app/_instruckt/${a.screenshot}\``);
+            const screenshotPath = (_e = this.config.screenshotPath) != null ? _e : "storage/app/_instruckt/";
+            lines.push(`- Screenshot: \`${screenshotPath}${a.screenshot}\``);
           } else {
-            lines.push(`- Screenshot: attached`);
+            lines.push(`- Screenshot: ![Screenshot](${a.screenshot})`);
           }
         }
         lines.push("");
       });
     }
-    const hasScreenshots = pending.some((a) => a.screenshot && !a.screenshot.startsWith("data:"));
-    lines.push("---");
-    lines.push("");
-    if (hasScreenshots) {
-      lines.push("Use the `instruckt.get_screenshot` MCP tool to view screenshots. After making changes, use `instruckt.resolve` to mark each annotation as resolved.");
-    } else {
-      lines.push("After making changes, use the `instruckt.resolve` MCP tool to mark each annotation as resolved.");
+    if (this.config.mcp) {
+      const hasScreenshots = pending.some((a) => a.screenshot && !a.screenshot.startsWith("data:"));
+      lines.push("---");
+      lines.push("");
+      if (hasScreenshots) {
+        lines.push("Use the `instruckt.get_screenshot` MCP tool to view screenshots. After making changes, use `instruckt.resolve` to mark each annotation as resolved.");
+      } else {
+        lines.push("After making changes, use the `instruckt.resolve` MCP tool to mark each annotation as resolved.");
+      }
     }
     return lines.join("\n").trim();
   }
@@ -3897,8 +3969,8 @@ No open annotations.`;
     if (this.pollTimer !== null) clearInterval(this.pollTimer);
   }
 };
-// ── Persistence ─────────────────────────────────────────────────
-_Instruckt.STORAGE_KEY = `instruckt:${window.location.origin}:annotations`;
+_Instruckt.IDB_NAME = "instruckt";
+_Instruckt.IDB_STORE = "screenshots";
 var Instruckt = _Instruckt;
 
 // src/index.ts

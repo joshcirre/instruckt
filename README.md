@@ -16,7 +16,101 @@ Or load via CDN:
 <script src="https://cdn.jsdelivr.net/npm/instruckt/dist/instruckt.iife.js"></script>
 ```
 
-## Quick Start
+## Quick Start: Vite Plugin
+
+The easiest way to use instruckt is with the Vite plugin. It handles client injection and provides a built-in dev API server — no backend required.
+
+```js
+// vite.config.ts
+import instruckt from 'instruckt/vite'
+
+export default defineConfig({
+  plugins: [instruckt()],
+})
+```
+
+That's it for SPA apps (Vue, React, Svelte with Vite). The plugin auto-injects the client via `transformIndexHtml`.
+
+### SSR Frameworks (SvelteKit, Nuxt, etc.)
+
+For frameworks that don't use `index.html`, import the virtual module in your layout:
+
+```js
+// SvelteKit: src/routes/+layout.svelte
+import 'virtual:instruckt'
+
+// Nuxt: plugins/instruckt.client.ts
+import 'virtual:instruckt'
+```
+
+The virtual module is SSR-safe — it only initializes in the browser.
+
+### Laravel
+
+The Vite plugin works alongside the Laravel package. Set `server: false` so Laravel handles the backend:
+
+```js
+// vite.config.ts
+import laravel from 'laravel-vite-plugin'
+import instruckt from 'instruckt/vite'
+
+export default defineConfig({
+  plugins: [
+    laravel({ input: ['resources/js/app.js'] }),
+    instruckt({
+      server: false,
+      adapters: ['livewire', 'blade'],
+      mcp: true,
+    }),
+  ],
+})
+```
+
+Then in your app entry:
+
+```js
+// resources/js/app.js
+import 'virtual:instruckt'
+```
+
+### Vite Plugin Options
+
+```js
+instruckt({
+  // Framework adapters to activate (default: auto-detect)
+  adapters: ['svelte'],
+
+  // Theme: 'light' | 'dark' | 'auto' (default: 'auto')
+  theme: 'auto',
+
+  // Toolbar position (default: 'bottom-right')
+  position: 'bottom-right',
+
+  // Customize marker pin colors
+  colors: { default: '#6366f1', screenshot: '#22c55e', dismissed: '#71717a' },
+
+  // Customize keyboard shortcuts
+  keys: { annotate: 'a', freeze: 'f', screenshot: 'c', clearPage: 'x' },
+
+  // Storage directory for annotations + screenshots (default: '.instruckt')
+  dir: '.instruckt',
+
+  // API endpoint prefix (default: '/instruckt')
+  endpoint: '/instruckt',
+
+  // Enable built-in dev API server (default: true)
+  // Set to false when your framework provides its own backend (e.g. Laravel)
+  server: true,
+
+  // Show MCP tool instructions in clipboard markdown (default: false)
+  // Set to true when using with a backend that registers MCP tools
+  mcp: false,
+})
+```
+
+## Manual Setup
+
+If you're not using Vite, you can initialize instruckt directly:
 
 ```js
 import { Instruckt } from 'instruckt'
@@ -34,6 +128,118 @@ Or with the IIFE build:
   Instruckt.init({ endpoint: '/instruckt' })
 </script>
 ```
+
+### Framework-Specific Manual Setup
+
+instruckt is a browser-only library. In SSR frameworks without the Vite plugin, make sure it only loads on the client.
+
+<details>
+<summary>SvelteKit</summary>
+
+```svelte
+<!-- src/lib/InstrucktProvider.svelte -->
+<script>
+  import { onMount } from 'svelte';
+
+  onMount(async () => {
+    const { Instruckt } = await import('instruckt');
+    const instruckt = new Instruckt({
+      endpoint: '/api/annotations',
+      adapters: ['svelte'],
+    });
+
+    return () => instruckt.destroy();
+  });
+</script>
+```
+
+```svelte
+<!-- src/routes/+layout.svelte -->
+<script>
+  import { browser } from '$app/environment';
+
+  let { children } = $props();
+</script>
+
+{#if browser}
+  {#await import('$lib/InstrucktProvider.svelte') then { default: InstrucktProvider }}
+    <InstrucktProvider />
+  {/await}
+{/if}
+
+{@render children()}
+```
+
+</details>
+
+<details>
+<summary>Nuxt</summary>
+
+```vue
+<!-- plugins/instruckt.client.ts -->
+<script>
+// The .client.ts suffix ensures Nuxt only runs this in the browser
+export default defineNuxtPlugin(async () => {
+  const { Instruckt } = await import('instruckt')
+
+  const instruckt = new Instruckt({
+    endpoint: '/api/annotations',
+    adapters: ['vue'],
+  })
+})
+</script>
+```
+
+</details>
+
+<details>
+<summary>Next.js (App Router)</summary>
+
+```tsx
+// components/InstrucktProvider.tsx
+'use client'
+
+import { useEffect } from 'react'
+
+export function InstrucktProvider() {
+  useEffect(() => {
+    let instruckt: any
+
+    import('instruckt').then(({ Instruckt }) => {
+      instruckt = new Instruckt({
+        endpoint: '/api/annotations',
+        adapters: ['react'],
+      })
+    })
+
+    return () => instruckt?.destroy()
+  }, [])
+
+  return null
+}
+```
+
+```tsx
+// app/layout.tsx
+import { InstrucktProvider } from '@/components/InstrucktProvider'
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        {children}
+        <InstrucktProvider />
+      </body>
+    </html>
+  )
+}
+```
+
+</details>
+
+### Astro
+
+See **[instruckt-astro](https://github.com/sgasser/instruckt-astro)** for a community-maintained Astro integration.
 
 ## How It Works
 
@@ -56,7 +262,7 @@ Or with the IIFE build:
 - Element: `button.btn-primary` in `pages::auth.login`
 - Classes: `btn btn-primary`
 - Text: "Submit Login"
-- Screenshot: `storage/app/_instruckt/screenshots/01JWXYZ.png`
+- Screenshot: `.instruckt/screenshots/01JWXYZ.png`
 
 ## 2. Make the login card have rounded corners
 - Element: `div.bg-white` in `pages::auth.login`
@@ -67,7 +273,7 @@ Or with the IIFE build:
 
 ```js
 new Instruckt({
-  // Required — URL to your instruckt API (provided by the Laravel package or your own backend)
+  // Required — URL to your instruckt API (provided by the Vite plugin, Laravel package, or your own backend)
   endpoint: '/instruckt',
 
   // Framework adapters to activate (default: all)
@@ -94,6 +300,10 @@ new Instruckt({
     clearPage: 'x',   // clear annotations on this page
   },
 
+  // Whether MCP tools are available (default: false)
+  // Set to true when using with Laravel or another backend that registers MCP tools
+  mcp: false,
+
   // Callbacks
   onAnnotationAdd: (annotation) => {},
 })
@@ -118,7 +328,7 @@ Default shortcuts (customizable via `keys` config):
 - **Shadow DOM isolation** — all UI renders in shadow roots so it never conflicts with your styles
 - **Copy as markdown** — annotations auto-copy as structured markdown optimized for AI agents
 - **Freeze mode** — pause animations, freeze popovers/dropdowns, and block all navigation
-- **Annotation persistence** — annotations survive page reloads and Vite rebuilds via localStorage fallback; with a backend (Laravel), annotations are loaded from the API on init
+- **Annotation persistence** — annotations survive page reloads via localStorage; with a backend (Vite plugin or Laravel), annotations are stored on disk as JSON
 - **Minimize** — collapse to a small floating button with annotation count badge
 - **Page-scoped markers** — annotation pins reposition on scroll/resize and only appear on the page where they were created
 - **Clear controls** — clear current page (`X` key or trash icon), or clear all pages via flyout
@@ -139,9 +349,23 @@ instruckt.destroy()
 
 ## Backend
 
-instruckt needs a backend to persist annotations. The official Laravel package provides this out of the box:
+### Vite Plugin (Built-in)
 
-- **[instruckt-laravel](https://github.com/joshcirre/instruckt-laravel)** — Laravel package with JSON file storage, MCP tools, Blade component, and API routes
+The Vite plugin includes a dev API server that saves annotations and screenshots to disk (`.instruckt/` directory). No external backend needed. Screenshots are saved as files instead of base64, keeping clipboard markdown small.
+
+### Laravel
+
+**[instruckt-laravel](https://github.com/joshcirre/instruckt-laravel)** — Laravel package with JSON file storage, MCP tools, Blade component, and API routes.
+
+### Custom Backend
+
+instruckt expects these endpoints:
+
+```
+GET    {endpoint}/annotations         → list annotations
+POST   {endpoint}/annotations         → create annotation
+PATCH  {endpoint}/annotations/{id}    → update annotation
+```
 
 ## License
 

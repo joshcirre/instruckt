@@ -32,4 +32,20 @@ export default defineConfig([
     platform: 'browser',
     target: 'es2017',
   },
+  // Vite plugin (Node.js, ESM + CJS)
+  {
+    entry: { vite: 'src/vite.ts' },
+    format: ['esm', 'cjs'],
+    outDir: 'dist',
+    outExtension: ({ format }) => ({
+      js: format === 'esm' ? '.esm.js' : '.cjs.js',
+    }),
+    external: ['vite'],
+    sourcemap: true,
+    dts: {
+      tsconfig: 'tsconfig.vite.json',
+    },
+    platform: 'node',
+    target: 'node18',
+  },
 ])
