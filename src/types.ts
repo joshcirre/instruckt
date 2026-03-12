@@ -80,6 +80,8 @@ export interface InstrucktConfig {
   colors?: MarkerColors
   /** Customize keyboard shortcuts */
   keys?: KeyBindings
+  /** Path prefix for screenshots in markdown export. Default: 'storage/app/_instruckt/' */
+  screenshotPath?: string
   /** Callbacks */
   onAnnotationAdd?: (annotation: Annotation) => void
   onAnnotationResolve?: (annotation: Annotation) => void
