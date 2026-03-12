@@ -12,6 +12,19 @@ npm install instruckt
 
 ## Quick Start
 
+> **Pick your framework below** -- each section is self-contained.
+
+| Framework | Setup |
+|-----------|-------|
+| [SPA (Vue, React, Svelte)](#spa-vue-react-svelte-with-vite) | Vite plugin only |
+| [SvelteKit](#sveltekit) | Vite plugin + virtual import |
+| [Nuxt](#nuxt) | Vite plugin + virtual import |
+| [Next.js](#nextjs) | Client component |
+| [Laravel](#laravel) | Composer package |
+| [Astro](#astro) | Community integration |
+
+---
+
 ### SPA (Vue, React, Svelte with Vite)
 
 Add the Vite plugin — it handles client injection and provides a built-in dev API server. No backend required.
@@ -26,6 +39,8 @@ export default defineConfig({
 ```
 
 That's it. The plugin auto-injects the client via `transformIndexHtml`.
+
+---
 
 ### SvelteKit
 
@@ -49,6 +64,8 @@ export default defineConfig({
 
 The virtual module is SSR-safe — it only initializes in the browser.
 
+---
+
 ### Nuxt
 
 Same idea — add the Vite plugin, then import the virtual module in a client plugin:
@@ -68,6 +85,8 @@ export default defineNuxtConfig({
 // plugins/instruckt.client.ts
 import 'virtual:instruckt'
 ```
+
+---
 
 ### Next.js
 
@@ -113,6 +132,8 @@ export default function RootLayout({ children }) {
 }
 ```
 
+---
+
 ### Laravel
 
 Use the **[instruckt-laravel](https://github.com/joshcirre/instruckt-laravel)** package — it provides the backend API, MCP tools, JSON file storage, and handles install/uninstall automatically:
@@ -140,9 +161,13 @@ export default defineConfig({
 })
 ```
 
+---
+
 ### Astro
 
 See **[instruckt-astro](https://github.com/sgasser/instruckt-astro)** for a community-maintained Astro integration.
+
+---
 
 ## Vite Plugin Options
 
