@@ -93,6 +93,8 @@ export interface InstrucktConfig {
   keys?: KeyBindings
   /** Show or hide built-in toolbar tools. Set to false to hide. Default: all true. */
   tools?: ToolsConfig
+  /** Path prefix for screenshots in markdown export. Default: 'storage/app/_instruckt/' */
+  screenshotPath?: string
   /** Callbacks */
   onAnnotationAdd?: (annotation: Annotation) => void
   onAnnotationResolve?: (annotation: Annotation) => void

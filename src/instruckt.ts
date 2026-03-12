@@ -820,7 +820,8 @@ export class Instruckt {
         if (a.screenshot) {
           // If stored as a relative path (from backend), show the full path
           if (!a.screenshot.startsWith('data:')) {
-            lines.push(`- Screenshot: \`storage/app/_instruckt/${a.screenshot}\``)
+            const screenshotPath = this.config.screenshotPath ?? 'storage/app/_instruckt/'
+            lines.push(`- Screenshot: \`${screenshotPath}${a.screenshot}\``)
           } else {
             lines.push(`- Screenshot: attached`)
           }
