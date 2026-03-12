@@ -1,4 +1,4 @@
-import type { KeyBindings } from '../types'
+import type { KeyBindings, ToolsConfig } from '../types'
 import { TOOLBAR_CSS } from './styles'
 
 export type ToolbarMode = 'idle' | 'annotating' | 'frozen'
@@ -44,14 +44,24 @@ export class Toolbar {
 
   private keys: KeyBindings
 
+  private readonly tools: ToolsConfig
+
   constructor(
     private readonly position: string,
     private readonly callbacks: ToolbarCallbacks,
     keys?: KeyBindings,
+    tools?: ToolsConfig,
   ) {
     this.keys = keys ?? {}
+    this.tools = tools ?? {}
     this.build()
     this.setupDrag()
+  }
+
+  /** Whether a built-in tool should be shown (default true if not specified). */
+  private show(id: keyof ToolsConfig): boolean {
+    const v = this.tools[id]
+    return v !== false
   }
 
   private build(): void {
@@ -114,11 +124,18 @@ export class Toolbar {
     minimizeBtn.classList.add('minimize-btn')
 
     const mkDiv = () => { const d = document.createElement('div'); d.className = 'divider'; return d }
-
-    this.toolbarEl.append(
-      this.annotateBtn, screenshotBtn, mkDiv(), this.freezeBtn, mkDiv(),
-      this.copyBtn, clearWrap, mkDiv(), minimizeBtn,
-    )
+    const toAppend: (HTMLButtonElement | HTMLDivElement)[] = []
+    const add = (el: HTMLButtonElement | HTMLDivElement) => {
+      if (toAppend.length > 0) toAppend.push(mkDiv())
+      toAppend.push(el)
+    }
+    if (this.show('annotate')) add(this.annotateBtn)
+    if (this.show('screenshot')) add(screenshotBtn)
+    if (this.show('freeze')) add(this.freezeBtn)
+    if (this.show('copy')) add(this.copyBtn)
+    if (this.show('clear_page') || this.show('clear_all')) add(clearWrap)
+    if (this.show('minimize')) add(minimizeBtn)
+    this.toolbarEl.append(...toAppend)
     this.shadow.appendChild(this.toolbarEl)
 
     // Floating action button (minimized state)
