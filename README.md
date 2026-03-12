@@ -12,9 +12,9 @@ npm install instruckt
 
 ## Quick Start
 
-### Vite Plugin
+### SPA (Vue, React, Svelte with Vite)
 
-The easiest way to use instruckt is with the Vite plugin. It handles client injection and provides a built-in dev API server — no backend required.
+Add the Vite plugin — it handles client injection and provides a built-in dev API server. No backend required.
 
 ```js
 // vite.config.ts
@@ -25,165 +25,53 @@ export default defineConfig({
 })
 ```
 
-That's it for SPA apps (Vue, React, Svelte with Vite). The plugin auto-injects the client via `transformIndexHtml`.
+That's it. The plugin auto-injects the client via `transformIndexHtml`.
 
-### Laravel
+### SvelteKit
 
-Use the **[instruckt-laravel](https://github.com/joshcirre/instruckt-laravel)** package — it provides the backend API, MCP tools, JSON file storage, and handles install/uninstall automatically:
-
-```bash
-composer require joshcirre/instruckt-laravel --dev
-php artisan instruckt:install
-```
-
-The install command adds the Vite plugin to your `vite.config.js` with `server: false` (Laravel owns the backend), configures MCP for your AI agent, and adds the virtual import to your JS entry point.
+Two steps — add the Vite plugin, then import the virtual module in your layout:
 
 ```js
-// vite.config.js (added automatically by install command)
+// vite.config.ts
 import instruckt from 'instruckt/vite'
 
 export default defineConfig({
-  plugins: [
-    laravel({ input: ['resources/js/app.js'] }),
-    instruckt({
-      server: false,
-      adapters: ['livewire', 'blade'],
-      mcp: true,
-    }),
-  ],
+  plugins: [sveltekit(), instruckt()],
 })
-```
-
-### SSR Frameworks (SvelteKit, Nuxt, etc.)
-
-For frameworks that don't use `index.html`, import the virtual module in your layout:
-
-```js
-// SvelteKit: src/routes/+layout.svelte
-import 'virtual:instruckt'
-
-// Nuxt: plugins/instruckt.client.ts
-import 'virtual:instruckt'
-```
-
-The virtual module is SSR-safe — it only initializes in the browser.
-
-### Astro
-
-See **[instruckt-astro](https://github.com/sgasser/instruckt-astro)** for a community-maintained Astro integration.
-
-## Vite Plugin Options
-
-```js
-instruckt({
-  // Framework adapters to activate (default: auto-detect)
-  adapters: ['svelte'],
-
-  // Theme: 'light' | 'dark' | 'auto' (default: 'auto')
-  theme: 'auto',
-
-  // Toolbar position (default: 'bottom-right')
-  position: 'bottom-right',
-
-  // Customize marker pin colors
-  colors: { default: '#6366f1', screenshot: '#22c55e', dismissed: '#71717a' },
-
-  // Customize keyboard shortcuts
-  keys: { annotate: 'a', freeze: 'f', screenshot: 'c', clearPage: 'x' },
-
-  // Storage directory for annotations + screenshots (default: '.instruckt')
-  dir: '.instruckt',
-
-  // API endpoint prefix (default: '/instruckt')
-  endpoint: '/instruckt',
-
-  // Enable built-in dev API server (default: true)
-  // Set to false when your framework provides its own backend (e.g. Laravel)
-  server: true,
-
-  // Show MCP tool instructions in clipboard markdown (default: false)
-  // Set to true when using with a backend that registers MCP tools
-  mcp: false,
-})
-```
-
-## Manual Setup
-
-If you're not using Vite, you can initialize instruckt directly:
-
-```js
-import { Instruckt } from 'instruckt'
-
-const instruckt = new Instruckt({
-  endpoint: '/instruckt',
-})
-```
-
-### Framework-Specific Manual Setup
-
-instruckt is a browser-only library. In SSR frameworks without the Vite plugin, make sure it only loads on the client.
-
-<details>
-<summary>SvelteKit</summary>
-
-```svelte
-<!-- src/lib/InstrucktProvider.svelte -->
-<script>
-  import { onMount } from 'svelte';
-
-  onMount(async () => {
-    const { Instruckt } = await import('instruckt');
-    const instruckt = new Instruckt({
-      endpoint: '/api/annotations',
-      adapters: ['svelte'],
-    });
-
-    return () => instruckt.destroy();
-  });
-</script>
 ```
 
 ```svelte
 <!-- src/routes/+layout.svelte -->
 <script>
-  import { browser } from '$app/environment';
-
-  let { children } = $props();
+  import 'virtual:instruckt'
 </script>
-
-{#if browser}
-  {#await import('$lib/InstrucktProvider.svelte') then { default: InstrucktProvider }}
-    <InstrucktProvider />
-  {/await}
-{/if}
-
-{@render children()}
 ```
 
-</details>
+The virtual module is SSR-safe — it only initializes in the browser.
 
-<details>
-<summary>Nuxt</summary>
+### Nuxt
 
-```vue
-<!-- plugins/instruckt.client.ts -->
-<script>
-// The .client.ts suffix ensures Nuxt only runs this in the browser
-export default defineNuxtPlugin(async () => {
-  const { Instruckt } = await import('instruckt')
+Same idea — add the Vite plugin, then import the virtual module in a client plugin:
 
-  const instruckt = new Instruckt({
-    endpoint: '/api/annotations',
-    adapters: ['vue'],
-  })
+```js
+// nuxt.config.ts — add the Vite plugin
+import instruckt from 'instruckt/vite'
+
+export default defineNuxtConfig({
+  vite: {
+    plugins: [instruckt()],
+  },
 })
-</script>
 ```
 
-</details>
+```ts
+// plugins/instruckt.client.ts
+import 'virtual:instruckt'
+```
 
-<details>
-<summary>Next.js (App Router)</summary>
+### Next.js
+
+Next.js doesn't use Vite, so initialize instruckt directly in a client component:
 
 ```tsx
 // components/InstrucktProvider.tsx
@@ -225,7 +113,71 @@ export default function RootLayout({ children }) {
 }
 ```
 
-</details>
+### Laravel
+
+Use the **[instruckt-laravel](https://github.com/joshcirre/instruckt-laravel)** package — it provides the backend API, MCP tools, JSON file storage, and handles install/uninstall automatically:
+
+```bash
+composer require joshcirre/instruckt-laravel --dev
+php artisan instruckt:install
+```
+
+The install command adds the Vite plugin to your `vite.config.js` with `server: false` (Laravel owns the backend), configures MCP for your AI agent, and adds the virtual import to your JS entry point.
+
+```js
+// vite.config.js (added automatically by install command)
+import instruckt from 'instruckt/vite'
+
+export default defineConfig({
+  plugins: [
+    laravel({ input: ['resources/js/app.js'] }),
+    instruckt({
+      server: false,
+      adapters: ['livewire', 'blade'],
+      mcp: true,
+    }),
+  ],
+})
+```
+
+### Astro
+
+See **[instruckt-astro](https://github.com/sgasser/instruckt-astro)** for a community-maintained Astro integration.
+
+## Vite Plugin Options
+
+```js
+instruckt({
+  // Framework adapters to activate (default: auto-detect)
+  adapters: ['svelte'],
+
+  // Theme: 'light' | 'dark' | 'auto' (default: 'auto')
+  theme: 'auto',
+
+  // Toolbar position (default: 'bottom-right')
+  position: 'bottom-right',
+
+  // Customize marker pin colors
+  colors: { default: '#6366f1', screenshot: '#22c55e', dismissed: '#71717a' },
+
+  // Customize keyboard shortcuts
+  keys: { annotate: 'a', freeze: 'f', screenshot: 'c', clearPage: 'x' },
+
+  // Storage directory for annotations + screenshots (default: '.instruckt')
+  dir: '.instruckt',
+
+  // API endpoint prefix (default: '/instruckt')
+  endpoint: '/instruckt',
+
+  // Enable built-in dev API server (default: true)
+  // Set to false when your framework provides its own backend (e.g. Laravel)
+  server: true,
+
+  // Show MCP tool instructions in clipboard markdown (default: false)
+  // Set to true when using with a backend that registers MCP tools
+  mcp: false,
+})
+```
 
 ## How It Works
 
