@@ -58,6 +58,16 @@ interface KeyBindings {
     /** Clear page annotations. Default: 'x' */
     clearPage?: string;
 }
+/** Set to false to hide a built-in toolbar tool. Omit or true to show. */
+interface ToolsConfig {
+    annotate?: boolean;
+    screenshot?: boolean;
+    freeze?: boolean;
+    copy?: boolean;
+    clear_page?: boolean;
+    clear_all?: boolean;
+    minimize?: boolean;
+}
 interface InstrucktConfig {
     /** URL to POST annotations to. Default: '/instruckt' */
     endpoint: string;
@@ -71,6 +81,8 @@ interface InstrucktConfig {
     colors?: MarkerColors;
     /** Customize keyboard shortcuts */
     keys?: KeyBindings;
+    /** Show or hide built-in toolbar tools. Set to false to hide. Default: all true. */
+    tools?: ToolsConfig;
     /** Path prefix for screenshots in markdown export. Default: 'storage/app/_instruckt/' */
     screenshotPath?: string;
     /** Whether MCP tools (get_screenshot, resolve) are available. Default: false */

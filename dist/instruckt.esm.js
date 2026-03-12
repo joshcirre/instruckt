@@ -525,7 +525,7 @@ var ICONS = {
   logo: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>`
 };
 var Toolbar = class {
-  constructor(position, callbacks, keys) {
+  constructor(position, callbacks, keys, tools) {
     this.position = position;
     this.callbacks = callbacks;
     this.fabBadge = null;
@@ -536,8 +536,14 @@ var Toolbar = class {
     this.dragging = false;
     this.dragOffset = { x: 0, y: 0 };
     this.keys = keys != null ? keys : {};
+    this.tools = tools != null ? tools : {};
     this.build();
     this.setupDrag();
+  }
+  /** Whether a built-in tool should be shown (default true if not specified). */
+  show(id) {
+    const v = this.tools[id];
+    return v !== false;
   }
   build() {
     var _a2, _b, _c, _d, _e;
@@ -597,17 +603,18 @@ var Toolbar = class {
       d.className = "divider";
       return d;
     };
-    this.toolbarEl.append(
-      this.annotateBtn,
-      screenshotBtn,
-      mkDiv(),
-      this.freezeBtn,
-      mkDiv(),
-      this.copyBtn,
-      clearWrap,
-      mkDiv(),
-      minimizeBtn
-    );
+    const toAppend = [];
+    const add = (el) => {
+      if (toAppend.length > 0) toAppend.push(mkDiv());
+      toAppend.push(el);
+    };
+    if (this.show("annotate")) add(this.annotateBtn);
+    if (this.show("screenshot")) add(screenshotBtn);
+    if (this.show("freeze")) add(this.freezeBtn);
+    if (this.show("copy")) add(this.copyBtn);
+    if (this.show("clear_page") || this.show("clear_all")) add(clearWrap);
+    if (this.show("minimize")) add(minimizeBtn);
+    this.toolbarEl.append(...toAppend);
     this.shadow.appendChild(this.toolbarEl);
     this.fab = document.createElement("button");
     this.fab.className = "fab";
@@ -3281,7 +3288,7 @@ var _Instruckt = class _Instruckt {
       onClearPage: () => this.clearPage(),
       onClearAll: () => this.clearEverything(),
       onMinimize: (min) => this.onMinimize(min)
-    }, this.config.keys);
+    }, this.config.keys, this.config.tools);
     this.highlight = new ElementHighlight();
     this.popup = new AnnotationPopup();
     this.markers = new AnnotationMarkers((annotation) => this.onMarkerClick(annotation));
@@ -3320,7 +3327,7 @@ var _Instruckt = class _Instruckt {
     this.isAnnotating = false;
     this.isFrozen = false;
     document.querySelectorAll("[data-instruckt]").forEach((el) => el.remove());
-    this.toolbar = new Toolbar(this.config.position, this.makeToolbarCallbacks());
+    this.toolbar = new Toolbar(this.config.position, this.makeToolbarCallbacks(), this.config.keys, this.config.tools);
     if (wasMinimized) this.toolbar.minimize();
     this.markers = new AnnotationMarkers((annotation) => this.onMarkerClick(annotation));
     this.highlight = new ElementHighlight();
