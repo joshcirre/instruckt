@@ -67,6 +67,17 @@ export interface KeyBindings {
   clearPage?: string
 }
 
+/** Set to false to hide a built-in toolbar tool. Omit or true to show. */
+export interface ToolsConfig {
+  annotate?: boolean
+  screenshot?: boolean
+  freeze?: boolean
+  copy?: boolean
+  clear_page?: boolean
+  clear_all?: boolean
+  minimize?: boolean
+}
+
 export interface InstrucktConfig {
   /** URL to POST annotations to. Default: '/instruckt' */
   endpoint: string
@@ -80,6 +91,8 @@ export interface InstrucktConfig {
   colors?: MarkerColors
   /** Customize keyboard shortcuts */
   keys?: KeyBindings
+  /** Show or hide built-in toolbar tools. Set to false to hide. Default: all true. */
+  tools?: ToolsConfig
   /** Callbacks */
   onAnnotationAdd?: (annotation: Annotation) => void
   onAnnotationResolve?: (annotation: Annotation) => void
