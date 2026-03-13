@@ -219,16 +219,22 @@ instruckt({
 ### Example Output
 
 ```markdown
-# UI Feedback: /auth/login
+# UI Feedback: /dashboard
 
 ## 1. Change the submit button color to green
-- Element: `button.btn-primary` in `pages::auth.login`
+- Element: `button.btn-primary` in `LoginForm`
+- Source: `src/components/LoginForm.tsx:42:5`
+- Component stack:
+  - LoginForm `src/components/LoginForm.tsx:42:5`
+  - AuthPage `src/pages/AuthPage.tsx:18:3`
+  - App `src/App.tsx:8:7`
 - Classes: `btn btn-primary`
 - Text: "Submit Login"
 - Screenshot: `.instruckt/screenshots/01JWXYZ.png`
 
 ## 2. Make the login card have rounded corners
-- Element: `div.bg-white` in `pages::auth.login`
+- Element: `div.bg-white` in `LoginCard`
+- Source: `src/components/LoginCard.tsx:15:3`
 - Classes: `bg-white dark:bg-white/10 border`
 ```
 
@@ -286,7 +292,7 @@ Default shortcuts (customizable via `keys` config):
 
 ## Features
 
-- **Framework detection** — automatically identifies Livewire, Vue, Svelte, and React components
+- **Framework detection** — automatically identifies Livewire, Vue, Svelte, and React components with full component stacks and precise source locations (file:line:column) via [element-source](https://github.com/aidenybai/element-source)
 - **Screenshots** — capture element or region screenshots; uses DOM-to-image on standard apps, automatically falls back to Screen Capture API on shadow DOM frameworks (Flux UI, etc.)
 - **Shadow DOM isolation** — all UI renders in shadow roots so it never conflicts with your styles
 - **Copy as markdown** — annotations auto-copy as structured markdown optimized for AI agents
