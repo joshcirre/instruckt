@@ -50,6 +50,7 @@
     }
   },
   "dependencies": {
+    "element-source": "^0.0.4",
     "modern-screenshot": "^4.6.8"
   }
 }

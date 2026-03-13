@@ -8,6 +8,8 @@ import { AnnotationMarkers } from './ui/markers'
 import { injectGlobalStyles } from './ui/styles'
 import { getElementSelector, getElementName, getElementLabel, getNearbyText, getCssClasses, getPageBoundingBox } from './selector'
 import { captureElement, captureRegion, selectRegion, setPreferScreenCapture } from './ui/screenshot'
+import { resolveElementInfo as resolveElementSource } from 'element-source'
+import type { SourceFrame } from './types'
 import * as livewireAdapter from './adapters/livewire'
 import * as vueAdapter from './adapters/vue'
 import * as svelteAdapter from './adapters/svelte'
@@ -541,26 +543,28 @@ export class Instruckt {
     const cssClasses = getCssClasses(target)
     const nearbyText = getNearbyText(target) || undefined
     const boundingBox = getPageBoundingBox(target)
-    const framework = this.detectFramework(target) ?? undefined
 
     this.highlight?.show(target)
     this.highlightLocked = true
 
-    const pending: PendingAnnotation = {
-      element: target,
-      elementPath,
-      elementName,
-      elementLabel,
-      cssClasses,
-      boundingBox,
-      x: e.clientX,
-      y: e.clientY,
-      selectedText,
-      nearbyText,
-      framework,
-    }
+    // Resolve framework context async (element-source returns Promises)
+    this.detectFramework(target).then(framework => {
+      const pending: PendingAnnotation = {
+        element: target,
+        elementPath,
+        elementName,
+        elementLabel,
+        cssClasses,
+        boundingBox,
+        x: e.clientX,
+        y: e.clientY,
+        selectedText,
+        nearbyText,
+        framework: framework ?? undefined,
+      }
 
-    this.showAnnotationPopup(pending)
+      this.showAnnotationPopup(pending)
+    })
   }
 
   private showAnnotationPopup(pending: PendingAnnotation): void {
@@ -627,6 +631,8 @@ export class Instruckt {
     const centerY = rect.y + rect.height / 2
     const target = document.elementFromPoint(centerX, centerY) ?? document.body
 
+    const framework = await this.detectFramework(target)
+
     const pending: PendingAnnotation = {
       element: target,
       elementPath: getElementSelector(target),
@@ -638,7 +644,7 @@ export class Instruckt {
       y: centerY,
       nearbyText: getNearbyText(target) || undefined,
       screenshot,
-      framework: this.detectFramework(target) ?? undefined,
+      framework: framework ?? undefined,
     }
 
     this.showAnnotationPopup(pending)
@@ -646,12 +652,69 @@ export class Instruckt {
 
   // ── Framework detection ───────────────────────────────────────
 
-  private detectFramework(el: Element) {
+  /**
+   * Use element-source as the primary resolver for React/Vue/Svelte,
+   * then layer our adapters on top for props/state/framework-specific metadata.
+   * Livewire and Blade are handled by our adapters only (element-source doesn't support them).
+   */
+  private async detectFramework(el: Element) {
     const adapters = this.config.adapters ?? []
+
+    // Livewire first — element-source doesn't handle it
     if (adapters.includes('livewire')) {
       const ctx = livewireAdapter.getContext(el)
       if (ctx) return ctx
     }
+
+    // Try element-source for React/Vue/Svelte (gives us full component stack + precise source locations)
+    const esAdapters = ['vue', 'svelte', 'react'] as const
+    if (esAdapters.some(a => adapters.includes(a))) {
+      try {
+        const info = await resolveElementSource(el)
+        if (info.source) {
+          const stack: SourceFrame[] = info.stack.map(f => ({
+            filePath: f.filePath,
+            lineNumber: f.lineNumber,
+            columnNumber: f.columnNumber,
+            componentName: f.componentName,
+          }))
+
+          // Determine which framework this is from our adapters (for props/state)
+          let adapterCtx = null
+          if (adapters.includes('vue')) adapterCtx = vueAdapter.getContext(el)
+          if (!adapterCtx && adapters.includes('svelte')) adapterCtx = svelteAdapter.getContext(el)
+          if (!adapterCtx && adapters.includes('react')) adapterCtx = reactAdapter.getContext(el)
+
+          // Merge: element-source provides source location + stack,
+          // our adapter provides framework name, props/state, and framework-specific fields
+          if (adapterCtx) {
+            return {
+              ...adapterCtx,
+              component: info.componentName ?? adapterCtx.component,
+              source_file: info.source.filePath,
+              source_line: info.source.lineNumber ?? adapterCtx.source_line,
+              source_column: info.source.columnNumber ?? undefined,
+              component_stack: stack.length > 0 ? stack : undefined,
+            }
+          }
+
+          // element-source resolved it but none of our adapters claimed it —
+          // still return what we got (could be Solid or an unrecognized framework)
+          return {
+            framework: 'react' as const, // element-source defaults to React resolver
+            component: info.componentName ?? 'Component',
+            source_file: info.source.filePath,
+            source_line: info.source.lineNumber ?? undefined,
+            source_column: info.source.columnNumber ?? undefined,
+            component_stack: stack.length > 0 ? stack : undefined,
+          }
+        }
+      } catch {
+        // element-source failed — fall through to our adapters
+      }
+    }
+
+    // Fallback: use our adapters directly (no element-source enrichment)
     if (adapters.includes('vue')) {
       const ctx = vueAdapter.getContext(el)
       if (ctx) return ctx
@@ -664,7 +727,8 @@ export class Instruckt {
       const ctx = reactAdapter.getContext(el)
       if (ctx) return ctx
     }
-    // Blade is last — it's a fallback when no JS framework claims the element
+
+    // Blade is last — fallback when no JS framework claims the element
     if (adapters.includes('blade')) {
       const ctx = bladeAdapter.getContext(el)
       if (ctx) return ctx
@@ -870,10 +934,28 @@ export class Instruckt {
 
         // Source file path (resolved server-side or from framework dev mode)
         if (a.framework?.source_file) {
-          const loc = a.framework.source_line ? `${a.framework.source_file}:${a.framework.source_line}` : a.framework.source_file
+          let loc = a.framework.source_file
+          if (a.framework.source_line) {
+            loc += `:${a.framework.source_line}`
+            if (a.framework.source_column) loc += `:${a.framework.source_column}`
+          }
           lines.push(`- Source: \`${loc}\``)
         } else if (a.framework?.data?.file) {
           lines.push(`- File: \`${a.framework.data.file}\``)
+        }
+
+        // Component stack (from element-source)
+        if (a.framework?.component_stack && a.framework.component_stack.length > 1) {
+          lines.push(`- Component stack:`)
+          for (const frame of a.framework.component_stack) {
+            let frameLoc = frame.filePath
+            if (frame.lineNumber) {
+              frameLoc += `:${frame.lineNumber}`
+              if (frame.columnNumber) frameLoc += `:${frame.columnNumber}`
+            }
+            const name = frame.componentName ? `${frame.componentName} ` : ''
+            lines.push(`  - ${name}\`${frameLoc}\``)
+          }
         }
 
         if (a.cssClasses) {

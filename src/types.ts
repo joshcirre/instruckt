@@ -2,6 +2,13 @@ export type AnnotationIntent = 'fix' | 'change' | 'question' | 'approve'
 export type AnnotationSeverity = 'blocking' | 'important' | 'suggestion'
 export type AnnotationStatus = 'pending' | 'resolved' | 'dismissed'
 
+export interface SourceFrame {
+  filePath: string
+  lineNumber: number | null
+  columnNumber: number | null
+  componentName: string | null
+}
+
 export interface FrameworkContext {
   framework: 'livewire' | 'vue' | 'svelte' | 'react' | 'blade'
   component: string
@@ -9,6 +16,9 @@ export interface FrameworkContext {
   // Source location (resolved client-side in dev mode, or server-side)
   source_file?: string
   source_line?: number
+  source_column?: number
+  // Full component stack from element-source
+  component_stack?: SourceFrame[]
   // Livewire-specific
   wire_id?: string
   class_name?: string
