@@ -1,6 +1,6 @@
 {
   "name": "instruckt",
-  "version": "0.4.28",
+  "version": "0.4.29",
   "description": "Visual feedback tool for AI coding agents — framework-agnostic, Livewire-first",
   "type": "module",
   "license": "MIT",
