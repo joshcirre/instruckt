@@ -77,6 +77,16 @@ export class Toolbar {
     this.toolbarEl = document.createElement('div')
     this.toolbarEl.className = 'toolbar'
 
+    // Visible drag handle at the top of the toolbar
+    const dragHandle = document.createElement('div')
+    dragHandle.className = 'drag-handle'
+    dragHandle.setAttribute('aria-label', 'Drag to reposition toolbar')
+    dragHandle.innerHTML = `<svg width="16" height="6" viewBox="0 0 16 6" fill="currentColor">
+      <circle cx="4" cy="1.5" r="1.2"/><circle cx="8" cy="1.5" r="1.2"/><circle cx="12" cy="1.5" r="1.2"/>
+      <circle cx="4" cy="4.5" r="1.2"/><circle cx="8" cy="4.5" r="1.2"/><circle cx="12" cy="4.5" r="1.2"/>
+    </svg>`
+    this.toolbarEl.appendChild(dragHandle)
+
     const k = this.keys
     this.annotateBtn = this.makeBtn(ICONS.annotate, `Annotate elements (${(k.annotate ?? 'A').toUpperCase()})`, () => {
       const next = !this.annotateActive
