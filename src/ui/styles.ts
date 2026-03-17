@@ -51,6 +51,22 @@ export const TOOLBAR_CSS = /* css */ `
 }
 .toolbar:active { cursor: grabbing; }
 
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 10px;
+  cursor: grab;
+  opacity: 0.35;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+  margin-bottom: 2px;
+}
+.drag-handle:hover { opacity: 0.7; }
+.drag-handle:active { cursor: grabbing; opacity: 0.9; }
+.drag-handle svg { pointer-events: none; }
+
 .btn {
   display: flex;
   align-items: center;
