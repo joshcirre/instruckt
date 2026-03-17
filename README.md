@@ -22,6 +22,7 @@ npm install instruckt
 | [Next.js](#nextjs) | Client component |
 | [Laravel](#laravel) | Composer package |
 | [Astro](#astro) | Community integration |
+| [Tauri](#tauri) | Rust plugin + MCP server |
 
 ---
 
@@ -166,6 +167,48 @@ export default defineConfig({
 ### Astro
 
 See **[instruckt-astro](https://github.com/sgasser/instruckt-astro)** for a community-maintained Astro integration.
+
+---
+
+### Tauri
+
+Use the **[tauri-plugin-instruckt](https://github.com/Naoray/instruckt-rust)** crate — a Tauri v2 plugin that provides a Rust backend with JSON file storage, MCP tools, and IPC commands. Dev-only by default.
+
+Add the plugin to your Tauri app:
+
+```toml
+# src-tauri/Cargo.toml
+[dependencies]
+tauri-plugin-instruckt = "0.1"
+```
+
+```rust
+// src-tauri/src/lib.rs
+fn main() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_instruckt::init())
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+```
+
+Then add the Vite plugin to your frontend with `server: false` (Tauri owns the backend):
+
+```js
+// vite.config.ts
+import instruckt from 'instruckt/vite'
+
+export default defineConfig({
+  plugins: [
+    instruckt({
+      server: false,
+      mcp: true,
+    }),
+  ],
+})
+```
+
+The plugin intercepts fetch requests to the instruckt API and routes them through Tauri IPC. Annotations and screenshots are stored in the OS app data directory. Includes a standalone MCP server binary (`instruckt-mcp`) that AI agents can connect to via stdio.
 
 ---
 
@@ -325,6 +368,10 @@ The Vite plugin includes a dev API server that saves annotations and screenshots
 ### Laravel
 
 **[instruckt-laravel](https://github.com/joshcirre/instruckt-laravel)** — Laravel package with JSON file storage, MCP tools, Blade component, and API routes. Includes `artisan instruckt:install` which auto-configures the Vite plugin, MCP, and agent skills.
+
+### Tauri
+
+**[tauri-plugin-instruckt](https://github.com/Naoray/instruckt-rust)** — Tauri v2 plugin with Rust backend, JSON file storage in OS app data directory, IPC commands, and a standalone MCP server binary for AI agent integration.
 
 ### Custom Backend
 
