@@ -88,6 +88,12 @@ export const TOOLBAR_CSS = /* css */ `
 .btn[data-tooltip]:hover::before { opacity: 1; }
 .btn.active { background: var(--ik-accent); color: #fff; }
 .btn.active:hover { background: var(--ik-accent-h); }
+ .btn:disabled { opacity: .65; cursor: not-allowed; }
+.btn.running { color: var(--ik-accent); }
+.btn.success { color: #22c55e; }
+.btn.error { color: #ef4444; }
+.ik-spin { animation: ik-spin 1s linear infinite; }
+@keyframes ik-spin { to { transform: rotate(360deg); } }
 
 .divider { width: 18px; height: 1px; background: var(--ik-border); margin: 3px 0; }
 
@@ -414,3 +420,4 @@ export function injectGlobalStyles(colors?: import('../types').MarkerColors): vo
   style.textContent = vars + GLOBAL_CSS + MARKER_CSS
   document.head.appendChild(style)
 }
+
