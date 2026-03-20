@@ -79,4 +79,20 @@ export class InstrucktApi {
     return toCamelCase(await res.json()) as unknown as Annotation
   }
 
+  async runAgent(markdown: string, annotationIds?: string[]): Promise<{ resolved_ids: string[] }> {
+    const res = await fetch(`${this.endpoint}/run`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({
+        markdown,
+        ...(annotationIds?.length ? { annotation_ids: annotationIds } : {}),
+      }),
+    })
+
+    if (res.status !== 200 && res.status !== 202) {
+      throw new Error(`instruckt: failed to run agent (${res.status})`)
+    }
+    const data = await res.json()
+    return { resolved_ids: data.resolved_ids ?? [] }
+  }
 }

@@ -254,7 +254,7 @@ instruckt({
 3. Hover over any element — instruckt highlights it and detects its framework component
 4. Click to annotate — type your feedback, optionally capture a screenshot, and save
 5. Annotations auto-copy as structured markdown to your clipboard (requires secure context — `https://` or `localhost`)
-6. Paste into any AI coding agent (Claude Code, Cursor, Codex, Copilot, OpenCode, etc.)
+6. Paste into any AI coding agent (Claude Code, Cursor, Codex, Copilot, OpenCode, etc.) — or press the **Run** button to send annotations directly to a configured local CLI agent
 7. The agent reads the markdown and makes the requested code changes
 
 > **Note:** Auto-copy requires a secure context (`https://` or `localhost`). On `http://` domains (e.g. `.test`), use the copy button in the toolbar instead.
@@ -339,6 +339,7 @@ Default shortcuts (customizable via `keys` config):
 - **Screenshots** — capture element or region screenshots; uses DOM-to-image on standard apps, automatically falls back to Screen Capture API on shadow DOM frameworks (Flux UI, etc.)
 - **Shadow DOM isolation** — all UI renders in shadow roots so it never conflicts with your styles
 - **Copy as markdown** — annotations auto-copy as structured markdown optimized for AI agents
+- **Run button** — send annotations directly to a configured local CLI agent (e.g. `cursor-agent`, `claude`, `codex`) with one click; supports in-process execution or a host listener for Docker/Sail
 - **Freeze mode** — pause animations, freeze popovers/dropdowns, and block all navigation
 - **Annotation persistence** — annotations survive page reloads via localStorage; with a backend (Vite plugin or Laravel), annotations are stored on disk as JSON
 - **Minimize** — collapse to a small floating button with annotation count badge
@@ -367,7 +368,7 @@ The Vite plugin includes a dev API server that saves annotations and screenshots
 
 ### Laravel
 
-**[instruckt-laravel](https://github.com/joshcirre/instruckt-laravel)** — Laravel package with JSON file storage, MCP tools, Blade component, and API routes. Includes `artisan instruckt:install` which auto-configures the Vite plugin, MCP, and agent skills.
+**[instruckt-laravel](https://github.com/joshcirre/instruckt-laravel)** — Laravel package with JSON file storage, MCP tools, Blade component, and API routes. Includes `artisan instruckt:install` which auto-configures the Vite plugin, MCP, and agent skills. Supports a **Run button** that pipes annotations directly to a configured CLI agent (or to a host listener for Docker/Sail environments).
 
 ### Tauri
 
@@ -381,6 +382,7 @@ instruckt expects these endpoints:
 GET    {endpoint}/annotations         → list annotations
 POST   {endpoint}/annotations         → create annotation
 PATCH  {endpoint}/annotations/{id}    → update annotation
+POST   {endpoint}/run                 → trigger configured CLI agent run (optional, for Run button)
 ```
 
 ## License
