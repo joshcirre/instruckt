@@ -83,6 +83,7 @@ export interface ToolsConfig {
   screenshot?: boolean
   freeze?: boolean
   copy?: boolean
+  run?: boolean
   clear_page?: boolean
   clear_all?: boolean
   minimize?: boolean
