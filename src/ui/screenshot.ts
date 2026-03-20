@@ -6,7 +6,7 @@ function nodeFilter(node: HTMLElement): boolean {
   return true
 }
 
-// ── Screen Capture API fallback ──────────────────────────────
+// ── Screen Capture API ───────────────────────────────────────
 
 let activeStream: MediaStream | null = null
 
@@ -52,19 +52,30 @@ function captureRectFromStream(stream: MediaStream, rect: DOMRect): Promise<stri
   })
 }
 
+// ── Capture method preference ────────────────────────────────
+
+let preferScreenCapture = false
+
+/** Call this at init time when Livewire (or similar shadow-DOM framework) is detected */
+export function setPreferScreenCapture(value: boolean): void {
+  preferScreenCapture = value
+}
+
 // ── Public API ───────────────────────────────────────────────
 
 /** Capture a DOM element as a base64 PNG data URL */
 export async function captureElement(el: Element): Promise<string | null> {
-  // Try modern-screenshot first (no permission needed)
-  try {
-    const dataUrl = await domToPng(el as HTMLElement, {
-      scale: 2,
-      filter: nodeFilter,
-    })
-    if (dataUrl) return dataUrl
-  } catch { /* fall through */ }
-  // Fall back to Screen Capture API (works on shadow DOM / Flux)
+  if (!preferScreenCapture) {
+    // Try modern-screenshot first (no permission needed, works on plain DOM)
+    try {
+      const dataUrl = await domToPng(el as HTMLElement, {
+        scale: 2,
+        filter: nodeFilter,
+      })
+      if (dataUrl) return dataUrl
+    } catch { /* fall through */ }
+  }
+  // Screen Capture API — works everywhere including Livewire / Flux
   try {
     const stream = await getStream()
     return await captureRectFromStream(stream, el.getBoundingClientRect())
@@ -76,15 +87,17 @@ export async function captureElement(el: Element): Promise<string | null> {
 
 /** Capture a rectangular region of the viewport as a base64 PNG data URL */
 export async function captureRegion(rect: DOMRect): Promise<string | null> {
-  // Try modern-screenshot first (no permission needed)
-  try {
-    const full = await domToPng(document.body, {
-      scale: 2,
-      filter: nodeFilter,
-    })
-    if (full) return await cropImage(full, rect)
-  } catch { /* fall through */ }
-  // Fall back to Screen Capture API (works on shadow DOM / Flux)
+  if (!preferScreenCapture) {
+    // Try modern-screenshot first (no permission needed, works on plain DOM)
+    try {
+      const full = await domToPng(document.body, {
+        scale: 2,
+        filter: nodeFilter,
+      })
+      if (full) return await cropImage(full, rect)
+    } catch { /* fall through */ }
+  }
+  // Screen Capture API — works everywhere including Livewire / Flux
   try {
     const stream = await getStream()
     return await captureRectFromStream(stream, rect)

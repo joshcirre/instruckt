@@ -7,11 +7,14 @@ import { AnnotationPopup } from './ui/popup'
 import { AnnotationMarkers } from './ui/markers'
 import { injectGlobalStyles } from './ui/styles'
 import { getElementSelector, getElementName, getElementLabel, getNearbyText, getCssClasses, getPageBoundingBox } from './selector'
-import { captureElement, captureRegion, selectRegion } from './ui/screenshot'
+import { captureElement, captureRegion, selectRegion, setPreferScreenCapture } from './ui/screenshot'
+import { resolveElementInfo as resolveElementSource } from 'element-source'
+import type { SourceFrame } from './types'
 import * as livewireAdapter from './adapters/livewire'
 import * as vueAdapter from './adapters/vue'
 import * as svelteAdapter from './adapters/svelte'
 import * as reactAdapter from './adapters/react'
+import * as bladeAdapter from './adapters/blade'
 
 // Re-export for api.ts consumers
 export type { AnnotationPayload }
@@ -37,6 +40,8 @@ export class Instruckt {
   private pendingMouseTarget: Element | null = null
   private highlightLocked = false
   private pollTimer: ReturnType<typeof setInterval> | null = null
+  private initialLoadDone = false
+  private hasBackend = false
   private boundKeydown: (e: KeyboardEvent) => void
   private boundReposition = (): void => {
     this.markers?.reposition(this.annotations)
@@ -44,7 +49,7 @@ export class Instruckt {
 
   constructor(config: InstrucktConfig) {
     this.config = {
-      adapters: ['livewire', 'vue', 'svelte', 'react'],
+      adapters: ['livewire', 'vue', 'svelte', 'react', 'blade'],
       theme: 'auto',
       position: 'bottom-right',
       ...config,
@@ -56,6 +61,13 @@ export class Instruckt {
 
   private init(): void {
     injectGlobalStyles(this.config.colors)
+
+    // Livewire / Flux use shadow DOM which breaks DOM-to-image screenshot libs.
+    // When Livewire is detected, go straight to Screen Capture API.
+    const adapters = this.config.adapters ?? []
+    if (adapters.includes('livewire') && livewireAdapter.isAvailable()) {
+      setPreferScreenCapture(true)
+    }
 
     if (this.config.theme !== 'auto') {
       document.documentElement.setAttribute('data-instruckt-theme', this.config.theme)
@@ -74,7 +86,7 @@ export class Instruckt {
       onClearPage: () => this.clearPage(),
       onClearAll: () => this.clearEverything(),
       onMinimize: (min) => this.onMinimize(min),
-    }, this.config.keys)
+    }, this.config.keys, this.config.tools)
 
     this.highlight = new ElementHighlight()
     this.popup = new AnnotationPopup()
@@ -91,10 +103,8 @@ export class Instruckt {
       setTimeout(() => this.reattach(), 0)
     })
 
-    // Load persisted annotations from the backend
+    // Load persisted annotations from the backend (async — calls syncMarkers when done)
     this.loadAnnotations()
-
-    this.syncMarkers()
   }
 
   private makeToolbarCallbacks() {
@@ -129,7 +139,7 @@ export class Instruckt {
     document.querySelectorAll('[data-instruckt]').forEach(el => el.remove())
 
     // Rebuild everything fresh
-    this.toolbar = new Toolbar(this.config.position, this.makeToolbarCallbacks())
+    this.toolbar = new Toolbar(this.config.position, this.makeToolbarCallbacks(), this.config.keys, this.config.tools)
     if (wasMinimized) this.toolbar.minimize()
 
     this.markers = new AnnotationMarkers((annotation) => this.onMarkerClick(annotation))
@@ -167,7 +177,9 @@ export class Instruckt {
 
   // ── Persistence ─────────────────────────────────────────────────
 
-  private static STORAGE_KEY = 'instruckt:annotations'
+  private static get STORAGE_KEY() {
+    return `instruckt:${window.location.origin}:annotations`
+  }
 
   private async loadAnnotations(): Promise<void> {
     // Always load localStorage first as baseline
@@ -175,34 +187,101 @@ export class Instruckt {
 
     try {
       const remote = await this.api.getAnnotations()
-      if (remote.length > 0) {
-        // Merge: remote is source of truth, but keep any local-only annotations
-        const remoteIds = new Set(remote.map(a => a.id))
-        const localOnly = this.annotations.filter(a => !remoteIds.has(a.id))
-        this.annotations = [...remote, ...localOnly]
-        this.saveToStorage()
-      }
+      this.hasBackend = true
+      // Merge: remote is source of truth, but keep any local-only annotations
+      const remoteIds = new Set(remote.map(a => a.id))
+      const localOnly = this.annotations.filter(a => !remoteIds.has(a.id))
+      this.annotations = [...remote, ...localOnly]
+      this.saveToStorage()
     } catch {
       // No backend — localStorage already loaded above
+      this.hasBackend = false
     }
+    this.initialLoadDone = true
     this.syncMarkers()
   }
 
   private saveToStorage(): void {
     try {
-      localStorage.setItem(Instruckt.STORAGE_KEY, JSON.stringify(this.annotations))
+      // Store screenshot data URIs in IndexedDB to avoid blowing localStorage's ~5MB limit
+      const screenshotMap = new Map<string, string>()
+      const stripped = this.annotations.map(a => {
+        if (a.screenshot?.startsWith('data:')) {
+          screenshotMap.set(a.id, a.screenshot)
+          return { ...a, screenshot: `idb:${a.id}` }
+        }
+        return a
+      })
+      localStorage.setItem(Instruckt.STORAGE_KEY, JSON.stringify(stripped))
+      if (screenshotMap.size > 0) this.saveScreenshotsToIdb(screenshotMap)
     } catch { /* storage full or unavailable */ }
   }
 
   private loadFromStorage(): void {
     try {
       const raw = localStorage.getItem(Instruckt.STORAGE_KEY)
-      if (raw) this.annotations = JSON.parse(raw)
+      if (raw) {
+        this.annotations = JSON.parse(raw)
+        // Restore screenshot data URIs from IndexedDB
+        const idbRefs = this.annotations.filter(a => a.screenshot?.startsWith('idb:'))
+        if (idbRefs.length > 0) this.loadScreenshotsFromIdb(idbRefs)
+      }
     } catch { /* corrupt or unavailable */ }
+  }
+
+  private static readonly IDB_NAME = 'instruckt'
+  private static readonly IDB_STORE = 'screenshots'
+
+  private openIdb(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(Instruckt.IDB_NAME, 1)
+      req.onupgradeneeded = () => {
+        const db = req.result
+        if (!db.objectStoreNames.contains(Instruckt.IDB_STORE)) {
+          db.createObjectStore(Instruckt.IDB_STORE)
+        }
+      }
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+  }
+
+  private async saveScreenshotsToIdb(screenshots: Map<string, string>): Promise<void> {
+    try {
+      const db = await this.openIdb()
+      const tx = db.transaction(Instruckt.IDB_STORE, 'readwrite')
+      const store = tx.objectStore(Instruckt.IDB_STORE)
+      for (const [id, dataUri] of screenshots) {
+        store.put(dataUri, id)
+      }
+      db.close()
+    } catch { /* IndexedDB unavailable */ }
+  }
+
+  private async loadScreenshotsFromIdb(annotations: Annotation[]): Promise<void> {
+    try {
+      const db = await this.openIdb()
+      const tx = db.transaction(Instruckt.IDB_STORE, 'readonly')
+      const store = tx.objectStore(Instruckt.IDB_STORE)
+      for (const a of annotations) {
+        const id = a.screenshot!.replace('idb:', '')
+        const req = store.get(id)
+        req.onsuccess = () => {
+          if (req.result) a.screenshot = req.result
+        }
+      }
+      await new Promise<void>((resolve) => { tx.oncomplete = () => resolve() })
+      db.close()
+      this.syncMarkers()
+    } catch { /* IndexedDB unavailable */ }
   }
 
   /** Start or stop polling based on whether there are active annotations */
   private updatePolling(): void {
+    // Don't start polling until the initial backend fetch has completed —
+    // stale localStorage may show phantom active annotations.
+    if (!this.initialLoadDone) return
+
     const hasActive = this.totalActiveCount() > 0
     if (hasActive && !this.pollTimer) {
       this.pollTimer = setInterval(() => this.pollForChanges(), 3000)
@@ -228,8 +307,10 @@ export class Instruckt {
       }
       if (changed) {
         this.saveToStorage()
-        this.syncMarkers()
       }
+      // Always re-evaluate polling — even if no status changed, the active
+      // count may have dropped to zero (e.g. after loadAnnotations merged).
+      this.syncMarkers()
     } catch { /* no backend or network error — skip */ }
   }
 
@@ -464,26 +545,28 @@ export class Instruckt {
     const cssClasses = getCssClasses(target)
     const nearbyText = getNearbyText(target) || undefined
     const boundingBox = getPageBoundingBox(target)
-    const framework = this.detectFramework(target) ?? undefined
 
     this.highlight?.show(target)
     this.highlightLocked = true
 
-    const pending: PendingAnnotation = {
-      element: target,
-      elementPath,
-      elementName,
-      elementLabel,
-      cssClasses,
-      boundingBox,
-      x: e.clientX,
-      y: e.clientY,
-      selectedText,
-      nearbyText,
-      framework,
-    }
+    // Resolve framework context async (element-source returns Promises)
+    this.detectFramework(target).then(framework => {
+      const pending: PendingAnnotation = {
+        element: target,
+        elementPath,
+        elementName,
+        elementLabel,
+        cssClasses,
+        boundingBox,
+        x: e.clientX,
+        y: e.clientY,
+        selectedText,
+        nearbyText,
+        framework: framework ?? undefined,
+      }
 
-    this.showAnnotationPopup(pending)
+      this.showAnnotationPopup(pending)
+    })
   }
 
   private showAnnotationPopup(pending: PendingAnnotation): void {
@@ -550,6 +633,8 @@ export class Instruckt {
     const centerY = rect.y + rect.height / 2
     const target = document.elementFromPoint(centerX, centerY) ?? document.body
 
+    const framework = await this.detectFramework(target)
+
     const pending: PendingAnnotation = {
       element: target,
       elementPath: getElementSelector(target),
@@ -561,7 +646,7 @@ export class Instruckt {
       y: centerY,
       nearbyText: getNearbyText(target) || undefined,
       screenshot,
-      framework: this.detectFramework(target) ?? undefined,
+      framework: framework ?? undefined,
     }
 
     this.showAnnotationPopup(pending)
@@ -569,12 +654,69 @@ export class Instruckt {
 
   // ── Framework detection ───────────────────────────────────────
 
-  private detectFramework(el: Element) {
+  /**
+   * Use element-source as the primary resolver for React/Vue/Svelte,
+   * then layer our adapters on top for props/state/framework-specific metadata.
+   * Livewire and Blade are handled by our adapters only (element-source doesn't support them).
+   */
+  private async detectFramework(el: Element) {
     const adapters = this.config.adapters ?? []
+
+    // Livewire first — element-source doesn't handle it
     if (adapters.includes('livewire')) {
       const ctx = livewireAdapter.getContext(el)
       if (ctx) return ctx
     }
+
+    // Try element-source for React/Vue/Svelte (gives us full component stack + precise source locations)
+    const esAdapters = ['vue', 'svelte', 'react'] as const
+    if (esAdapters.some(a => adapters.includes(a))) {
+      try {
+        const info = await resolveElementSource(el)
+        if (info.source) {
+          const stack: SourceFrame[] = info.stack.map(f => ({
+            filePath: f.filePath,
+            lineNumber: f.lineNumber,
+            columnNumber: f.columnNumber,
+            componentName: f.componentName,
+          }))
+
+          // Determine which framework this is from our adapters (for props/state)
+          let adapterCtx = null
+          if (adapters.includes('vue')) adapterCtx = vueAdapter.getContext(el)
+          if (!adapterCtx && adapters.includes('svelte')) adapterCtx = svelteAdapter.getContext(el)
+          if (!adapterCtx && adapters.includes('react')) adapterCtx = reactAdapter.getContext(el)
+
+          // Merge: element-source provides source location + stack,
+          // our adapter provides framework name, props/state, and framework-specific fields
+          if (adapterCtx) {
+            return {
+              ...adapterCtx,
+              component: info.componentName ?? adapterCtx.component,
+              source_file: info.source.filePath,
+              source_line: info.source.lineNumber ?? adapterCtx.source_line,
+              source_column: info.source.columnNumber ?? undefined,
+              component_stack: stack.length > 0 ? stack : undefined,
+            }
+          }
+
+          // element-source resolved it but none of our adapters claimed it —
+          // still return what we got (could be Solid or an unrecognized framework)
+          return {
+            framework: 'react' as const, // element-source defaults to React resolver
+            component: info.componentName ?? 'Component',
+            source_file: info.source.filePath,
+            source_line: info.source.lineNumber ?? undefined,
+            source_column: info.source.columnNumber ?? undefined,
+            component_stack: stack.length > 0 ? stack : undefined,
+          }
+        }
+      } catch {
+        // element-source failed — fall through to our adapters
+      }
+    }
+
+    // Fallback: use our adapters directly (no element-source enrichment)
     if (adapters.includes('vue')) {
       const ctx = vueAdapter.getContext(el)
       if (ctx) return ctx
@@ -585,6 +727,12 @@ export class Instruckt {
     }
     if (adapters.includes('react')) {
       const ctx = reactAdapter.getContext(el)
+      if (ctx) return ctx
+    }
+
+    // Blade is last — fallback when no JS framework claims the element
+    if (adapters.includes('blade')) {
+      const ctx = bladeAdapter.getContext(el)
       if (ctx) return ctx
     }
     return null
@@ -801,11 +949,33 @@ export class Instruckt {
         // Feedback-first heading with element context
         const componentSuffix = a.framework?.component ? ` in \`${a.framework.component}\`` : ''
         lines.push(`${hPrefix} ${i + 1}. ${a.comment}`)
+        lines.push(`- ID: \`${a.id}\``)
         lines.push(`- Element: \`${a.element}\`${componentSuffix}`)
 
-        // File path if available (e.g. Svelte)
-        if (a.framework?.data?.file) {
+        // Source file path (resolved server-side or from framework dev mode)
+        if (a.framework?.source_file) {
+          let loc = a.framework.source_file
+          if (a.framework.source_line) {
+            loc += `:${a.framework.source_line}`
+            if (a.framework.source_column) loc += `:${a.framework.source_column}`
+          }
+          lines.push(`- Source: \`${loc}\``)
+        } else if (a.framework?.data?.file) {
           lines.push(`- File: \`${a.framework.data.file}\``)
+        }
+
+        // Component stack (from element-source)
+        if (a.framework?.component_stack && a.framework.component_stack.length > 1) {
+          lines.push(`- Component stack:`)
+          for (const frame of a.framework.component_stack) {
+            let frameLoc = frame.filePath
+            if (frame.lineNumber) {
+              frameLoc += `:${frame.lineNumber}`
+              if (frame.columnNumber) frameLoc += `:${frame.columnNumber}`
+            }
+            const name = frame.componentName ? `${frame.componentName} ` : ''
+            lines.push(`  - ${name}\`${frameLoc}\``)
+          }
         }
 
         if (a.cssClasses) {
@@ -817,25 +987,28 @@ export class Instruckt {
           lines.push(`- Text: "${a.nearbyText.slice(0, 100)}"`)
         }
         if (a.screenshot) {
-          // If stored as a relative path (from backend), show the full path
           if (!a.screenshot.startsWith('data:')) {
-            lines.push(`- Screenshot: \`storage/app/_instruckt/${a.screenshot}\``)
+            // Backend-saved file path
+            const screenshotPath = this.config.screenshotPath ?? 'storage/app/_instruckt/'
+            lines.push(`- Screenshot: \`${screenshotPath}${a.screenshot}\``)
           } else {
-            lines.push(`- Screenshot: attached`)
+            // Inline data URI as a markdown image
+            lines.push(`- Screenshot: ![Screenshot](${a.screenshot})`)
           }
         }
         lines.push('')
       })
     }
 
-    // Add MCP instructions when a backend is configured
-    const hasScreenshots = pending.some(a => a.screenshot && !a.screenshot.startsWith('data:'))
-    lines.push('---')
-    lines.push('')
-    if (hasScreenshots) {
-      lines.push('Use the `instruckt.get_screenshot` MCP tool to view screenshots. After making changes, use `instruckt.resolve` to mark each annotation as resolved.')
-    } else {
-      lines.push('After making changes, use the `instruckt.resolve` MCP tool to mark each annotation as resolved.')
+    if (this.config.mcp) {
+      const hasScreenshots = pending.some(a => a.screenshot && !a.screenshot.startsWith('data:'))
+      lines.push('---')
+      lines.push('')
+      if (hasScreenshots) {
+        lines.push('Use the `instruckt.get_screenshot` MCP tool to view screenshots. After making changes, use `instruckt.resolve` to mark each annotation as resolved.')
+      } else {
+        lines.push('After making changes, use the `instruckt.resolve` MCP tool to mark each annotation as resolved.')
+      }
     }
 
     return lines.join('\n').trim()

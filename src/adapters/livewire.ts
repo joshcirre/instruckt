@@ -29,13 +29,16 @@ export function getContext(el: Element): FrameworkContext | null {
 
   const wireId = wireEl.getAttribute('wire:id')!
 
-  // In Livewire v3, the component name lives in the wire:snapshot attribute
+  // In Livewire v3+, component metadata lives in the wire:snapshot attribute
   let componentName = 'Unknown'
+  let className: string | undefined
   const snapshotAttr = wireEl.getAttribute('wire:snapshot')
   if (snapshotAttr) {
     try {
       const snapshot = JSON.parse(snapshotAttr)
       componentName = snapshot?.memo?.name ?? 'Unknown'
+      // The snapshot memo may contain the full class name
+      className = snapshot?.memo?.path ?? snapshot?.memo?.name
     } catch {
       // malformed snapshot
     }
@@ -45,5 +48,6 @@ export function getContext(el: Element): FrameworkContext | null {
     framework: 'livewire',
     component: componentName,
     wire_id: wireId,
+    class_name: className,
   }
 }

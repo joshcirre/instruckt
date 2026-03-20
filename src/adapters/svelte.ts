@@ -34,6 +34,7 @@ export function getContext(el: Element): FrameworkContext | null {
   return {
     framework: 'svelte',
     component,
+    source_file: filePath || undefined,
     data: filePath ? { file: filePath } : undefined,
   }
 }

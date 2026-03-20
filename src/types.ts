@@ -2,12 +2,27 @@ export type AnnotationIntent = 'fix' | 'change' | 'question' | 'approve'
 export type AnnotationSeverity = 'blocking' | 'important' | 'suggestion'
 export type AnnotationStatus = 'pending' | 'resolved' | 'dismissed'
 
+export interface SourceFrame {
+  filePath: string
+  lineNumber: number | null
+  columnNumber: number | null
+  componentName: string | null
+}
+
 export interface FrameworkContext {
-  framework: 'livewire' | 'vue' | 'svelte' | 'react'
+  framework: 'livewire' | 'vue' | 'svelte' | 'react' | 'blade'
   component: string
   data?: Record<string, unknown>
+  // Source location (resolved client-side in dev mode, or server-side)
+  source_file?: string
+  source_line?: number
+  source_column?: number
+  // Full component stack from element-source
+  component_stack?: SourceFrame[]
   // Livewire-specific
   wire_id?: string
+  class_name?: string
+  render_line?: number
   // Vue-specific
   component_uid?: string
 }
@@ -62,11 +77,22 @@ export interface KeyBindings {
   clearPage?: string
 }
 
+/** Set to false to hide a built-in toolbar tool. Omit or true to show. */
+export interface ToolsConfig {
+  annotate?: boolean
+  screenshot?: boolean
+  freeze?: boolean
+  copy?: boolean
+  clear_page?: boolean
+  clear_all?: boolean
+  minimize?: boolean
+}
+
 export interface InstrucktConfig {
   /** URL to POST annotations to. Default: '/instruckt' */
   endpoint: string
   /** Framework adapters to activate. Default: auto-detect */
-  adapters?: Array<'livewire' | 'vue' | 'svelte' | 'react'>
+  adapters?: Array<'livewire' | 'vue' | 'svelte' | 'react' | 'blade'>
   /** Theme preference. Default: 'auto' */
   theme?: 'light' | 'dark' | 'auto'
   /** Position of the toolbar. Default: 'bottom-right' */
@@ -75,6 +101,12 @@ export interface InstrucktConfig {
   colors?: MarkerColors
   /** Customize keyboard shortcuts */
   keys?: KeyBindings
+  /** Show or hide built-in toolbar tools. Set to false to hide. Default: all true. */
+  tools?: ToolsConfig
+  /** Path prefix for screenshots in markdown export. Default: 'storage/app/_instruckt/' */
+  screenshotPath?: string
+  /** Whether MCP tools (get_screenshot, resolve) are available. Default: false */
+  mcp?: boolean
   /** Callbacks */
   onAnnotationAdd?: (annotation: Annotation) => void
   onAnnotationResolve?: (annotation: Annotation) => void

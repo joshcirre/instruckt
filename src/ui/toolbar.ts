@@ -1,4 +1,4 @@
-import type { KeyBindings } from '../types'
+import type { KeyBindings, ToolsConfig } from '../types'
 import { TOOLBAR_CSS } from './styles'
 
 export type ToolbarMode = 'idle' | 'annotating' | 'frozen'
@@ -50,14 +50,24 @@ export class Toolbar {
 
   private keys: KeyBindings
 
+  private readonly tools: ToolsConfig
+
   constructor(
     private readonly position: string,
     private readonly callbacks: ToolbarCallbacks,
     keys?: KeyBindings,
+    tools?: ToolsConfig,
   ) {
     this.keys = keys ?? {}
+    this.tools = tools ?? {}
     this.build()
     this.setupDrag()
+  }
+
+  /** Whether a built-in tool should be shown (default true if not specified). */
+  private show(id: keyof ToolsConfig): boolean {
+    const v = this.tools[id]
+    return v !== false
   }
 
   private build(): void {
@@ -72,6 +82,16 @@ export class Toolbar {
     // Full toolbar
     this.toolbarEl = document.createElement('div')
     this.toolbarEl.className = 'toolbar'
+
+    // Visible drag handle at the top of the toolbar
+    const dragHandle = document.createElement('div')
+    dragHandle.className = 'drag-handle'
+    dragHandle.setAttribute('aria-label', 'Drag to reposition toolbar')
+    dragHandle.innerHTML = `<svg width="16" height="6" viewBox="0 0 16 6" fill="currentColor">
+      <circle cx="4" cy="1.5" r="1.2"/><circle cx="8" cy="1.5" r="1.2"/><circle cx="12" cy="1.5" r="1.2"/>
+      <circle cx="4" cy="4.5" r="1.2"/><circle cx="8" cy="4.5" r="1.2"/><circle cx="12" cy="4.5" r="1.2"/>
+    </svg>`
+    this.toolbarEl.appendChild(dragHandle)
 
     const k = this.keys
     this.annotateBtn = this.makeBtn(ICONS.annotate, `Annotate elements (${(k.annotate ?? 'A').toUpperCase()})`, () => {
@@ -124,6 +144,19 @@ export class Toolbar {
     minimizeBtn.classList.add('minimize-btn')
 
     const mkDiv = () => { const d = document.createElement('div'); d.className = 'divider'; return d }
+    const toAppend: (HTMLButtonElement | HTMLDivElement)[] = []
+    const add = (el: HTMLButtonElement | HTMLDivElement) => {
+      if (toAppend.length > 0) toAppend.push(mkDiv())
+      toAppend.push(el)
+    }
+    if (this.show('annotate')) add(this.annotateBtn)
+    if (this.show('screenshot')) add(screenshotBtn)
+    if (this.show('freeze')) add(this.freezeBtn)
+    if (this.show('run')) add(this.runBtn)
+    if (this.show('copy')) add(this.copyBtn)
+    if (this.show('clear_page') || this.show('clear_all')) add(clearWrap)
+    if (this.show('minimize')) add(minimizeBtn)
+    this.toolbarEl.append(...toAppend)
 
     this.toolbarEl.append(
       this.annotateBtn, screenshotBtn, mkDiv(), this.freezeBtn, mkDiv(),
