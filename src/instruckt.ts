@@ -970,7 +970,8 @@ export class Instruckt {
           if (!a.screenshot.startsWith('data:')) {
             // Backend-saved file path
             const screenshotPath = this.config.screenshotPath ?? 'storage/app/_instruckt/'
-            lines.push(`- Screenshot: \`${screenshotPath}${a.screenshot}\``)
+            const screenshotInstruction = this.config.mcp ? ` — call \`instruckt.get_screenshot\` with ID \`${a.id}\` to view` : ''
+            lines.push(`- Screenshot: \`${screenshotPath}${a.screenshot}\`${screenshotInstruction}`)
           } else {
             // Inline data URI as a markdown image
             lines.push(`- Screenshot: ![Screenshot](${a.screenshot})`)
@@ -981,14 +982,9 @@ export class Instruckt {
     }
 
     if (this.config.mcp) {
-      const hasScreenshots = pending.some(a => a.screenshot && !a.screenshot.startsWith('data:'))
       lines.push('---')
       lines.push('')
-      if (hasScreenshots) {
-        lines.push('Use the `instruckt.get_screenshot` MCP tool to view screenshots. After making changes, use `instruckt.resolve` to mark each annotation as resolved.')
-      } else {
-        lines.push('After making changes, use the `instruckt.resolve` MCP tool to mark each annotation as resolved.')
-      }
+      lines.push('After making changes, use the `instruckt.resolve` MCP tool to mark each annotation as resolved.')
     }
 
     return lines.join('\n').trim()
