@@ -82,6 +82,7 @@ export class Instruckt {
       },
       onScreenshot: () => this.startRegionCapture(),
       onCopy: () => this.copyToClipboard(true),
+      onRun: () => this.runNow(),
       onClearPage: () => this.clearPage(),
       onClearAll: () => this.clearEverything(),
       onMinimize: (min) => this.onMinimize(min),
@@ -116,6 +117,7 @@ export class Instruckt {
       },
       onScreenshot: () => this.startRegionCapture(),
       onCopy: () => this.copyToClipboard(true),
+      onRun: () => this.runNow(),
       onClearPage: () => this.clearPage(),
       onClearAll: () => this.clearEverything(),
       onMinimize: (min: boolean) => this.onMinimize(min),
@@ -876,8 +878,8 @@ export class Instruckt {
   }
 
   /** Copy to clipboard. With fallback=true, uses execCommand for non-secure contexts (user-initiated only). */
-  private copyToClipboard(fallback: boolean): void {
-    const md = this.exportMarkdown()
+  private copyToClipboard(fallback: boolean, markdown?: string): void {
+    const md = markdown ?? this.exportMarkdown()
     if (window.isSecureContext) {
       navigator.clipboard.writeText(md).catch(() => { /* unavailable */ })
     } else if (fallback) {
@@ -893,6 +895,24 @@ export class Instruckt {
     }
   }
 
+  private async runNow(): Promise<void> {
+    const markdown = this.exportMarkdown()
+    this.copyToClipboard(true, markdown)
+    const pending = this.annotations.filter(a => a.status !== 'resolved' && a.status !== 'dismissed')
+    const ids = pending.map(a => a.id)
+    const { resolved_ids } = await this.api.runAgent(markdown, ids)
+    const now = new Date().toISOString()
+    for (const id of resolved_ids) {
+      const a = this.annotations.find(x => x.id === id)
+      if (a) {
+        a.status = 'resolved'
+        a.resolvedAt = now
+        a.resolvedBy = 'human'
+      }
+    }
+    this.saveToStorage()
+    this.syncMarkers()
+  }
   exportMarkdown(): string {
     const pending = this.annotations.filter(a => a.status !== 'resolved' && a.status !== 'dismissed')
     if (pending.length === 0) {
@@ -1008,3 +1028,4 @@ export class Instruckt {
     if (this.pollTimer !== null) clearInterval(this.pollTimer)
   }
 }
+

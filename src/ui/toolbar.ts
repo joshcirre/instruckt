@@ -8,18 +8,22 @@ interface ToolbarCallbacks {
   onFreezeAnimations: (frozen: boolean) => void
   onScreenshot: () => void
   onCopy: () => void
+  onRun: () => Promise<void> | void
   onClearPage?: () => void
   onClearAll?: () => void
   onMinimize?: (minimized: boolean) => void
 }
 
-// ── Inline SVG icons (24x24, 2px stroke) ─────────────────────
+// -- Inline SVG icons (24x24, 2px stroke) ---------------------
 
 const ICONS = {
   annotate: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>`,
   freeze: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`,
   copy: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+  run: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>`,
+  running: `<svg class="ik-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/></svg>`,
   check: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+  error: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
   clear: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
   minimize: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 13 12 18 17 13"/><line x1="12" y1="6" x2="12" y2="18"/></svg>`,
   screenshot: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
@@ -35,12 +39,14 @@ export class Toolbar {
   private annotateBtn!: HTMLButtonElement
   private freezeBtn!: HTMLButtonElement
   private copyBtn!: HTMLButtonElement
+  private runBtn!: HTMLButtonElement
   private annotateActive = false
   private freezeActive = false
   private minimized = false
   private totalCount = 0
   private dragging = false
   private dragOffset = { x: 0, y: 0 }
+  private runResetTimer: ReturnType<typeof setTimeout> | null = null
 
   private keys: KeyBindings
 
@@ -110,6 +116,10 @@ export class Toolbar {
       setTimeout(() => { this.copyBtn.innerHTML = ICONS.copy }, 1200)
     })
 
+    this.runBtn = this.makeBtn(ICONS.run, 'Copy markdown and run local agent', () => {
+      void this.handleRunClick()
+    })
+
     const clearWrap = document.createElement('div')
     clearWrap.className = 'clear-wrap'
 
@@ -142,10 +152,16 @@ export class Toolbar {
     if (this.show('annotate')) add(this.annotateBtn)
     if (this.show('screenshot')) add(screenshotBtn)
     if (this.show('freeze')) add(this.freezeBtn)
+    if (this.show('run')) add(this.runBtn)
     if (this.show('copy')) add(this.copyBtn)
     if (this.show('clear_page') || this.show('clear_all')) add(clearWrap)
     if (this.show('minimize')) add(minimizeBtn)
     this.toolbarEl.append(...toAppend)
+
+    this.toolbarEl.append(
+      this.annotateBtn, screenshotBtn, mkDiv(), this.freezeBtn, mkDiv(),
+      this.copyBtn, this.runBtn, clearWrap, mkDiv(), minimizeBtn,
+    )
     this.shadow.appendChild(this.toolbarEl)
 
     // Floating action button (minimized state)
@@ -162,7 +178,7 @@ export class Toolbar {
     this.shadow.appendChild(this.fab)
 
     // Prevent toolbar clicks from reaching page handlers (e.g. Alpine @click.outside)
-    // Shadow DOM stopPropagation only works within the shadow tree — clicks still
+    // Shadow DOM stopPropagation only works within the shadow tree � clicks still
     // re-dispatch from the host element into the regular DOM.
     this.host.addEventListener('click', (e) => e.stopPropagation())
     this.host.addEventListener('mousedown', (e) => e.stopPropagation())
@@ -177,6 +193,7 @@ export class Toolbar {
   private makeBtn(iconHtml: string, tooltip: string, onClick: () => void): HTMLButtonElement {
     const btn = document.createElement('button')
     btn.className = 'btn'
+    btn.setAttribute('type', 'button')
     btn.setAttribute('data-tooltip', tooltip)
     btn.setAttribute('aria-label', tooltip)
     btn.innerHTML = iconHtml
@@ -199,22 +216,55 @@ export class Toolbar {
     })
   }
 
-  private static readonly POSITION_KEY = 'instruckt:toolbar-pos'
-
-  private savePosition(): void {
-    const { left, right, top, bottom } = this.host.style
+  private async handleRunClick(): Promise<void> {
+    if (this.runBtn.disabled) return
+    this.setRunState('running')
     try {
-      localStorage.setItem(Toolbar.POSITION_KEY, JSON.stringify({ left, right, top, bottom }))
-    } catch {}
+      await Promise.resolve(this.callbacks.onRun())
+      this.setRunState('success')
+    } catch {
+      this.setRunState('error')
+    }
   }
 
-  private loadSavedPosition(): void {
-    try {
-      const raw = localStorage.getItem(Toolbar.POSITION_KEY)
-      if (!raw) return
-      const { left, right, top, bottom } = JSON.parse(raw)
-      Object.assign(this.host.style, { left, right, top, bottom })
-    } catch {}
+  private setRunState(state: 'idle' | 'running' | 'success' | 'error'): void {
+    if (this.runResetTimer) {
+      clearTimeout(this.runResetTimer)
+      this.runResetTimer = null
+    }
+
+    this.runBtn.classList.remove('running', 'success', 'error')
+    this.runBtn.disabled = false
+    this.runBtn.setAttribute('data-tooltip', 'Copy markdown and run local agent')
+    this.runBtn.setAttribute('aria-label', 'Copy markdown and run local agent')
+
+    if (state === 'idle') {
+      this.runBtn.innerHTML = ICONS.run
+      return
+    }
+
+    if (state === 'running') {
+      this.runBtn.disabled = true
+      this.runBtn.classList.add('running')
+      this.runBtn.innerHTML = ICONS.running
+      this.runBtn.setAttribute('data-tooltip', 'Running local agent...')
+      this.runBtn.setAttribute('aria-label', 'Running local agent')
+      return
+    }
+
+    if (state === 'success') {
+      this.runBtn.classList.add('success')
+      this.runBtn.innerHTML = ICONS.check
+      this.runBtn.setAttribute('data-tooltip', 'Agent run triggered')
+      this.runBtn.setAttribute('aria-label', 'Agent run triggered')
+    } else {
+      this.runBtn.classList.add('error')
+      this.runBtn.innerHTML = ICONS.error
+      this.runBtn.setAttribute('data-tooltip', 'Agent run failed')
+      this.runBtn.setAttribute('aria-label', 'Agent run failed')
+    }
+
+    this.runResetTimer = setTimeout(() => this.setRunState('idle'), 1500)
   }
 
   private setupDrag(): void {
@@ -241,6 +291,24 @@ export class Toolbar {
       if (this.dragging) this.savePosition()
       this.dragging = false
     })
+  }
+  
+  private static readonly POSITION_KEY = 'instruckt:toolbar-pos'
+
+  private savePosition(): void {
+    const { left, right, top, bottom } = this.host.style
+    try {
+      localStorage.setItem(Toolbar.POSITION_KEY, JSON.stringify({ left, right, top, bottom }))
+    } catch {}
+  }
+
+  private loadSavedPosition(): void {
+    try {
+      const raw = localStorage.getItem(Toolbar.POSITION_KEY)
+      if (!raw) return
+      const { left, right, top, bottom } = JSON.parse(raw)
+      Object.assign(this.host.style, { left, right, top, bottom })
+    } catch {}
   }
 
   private setMinimized(min: boolean): void {
@@ -313,6 +381,7 @@ export class Toolbar {
   }
 
   destroy(): void {
+    if (this.runResetTimer) clearTimeout(this.runResetTimer)
     this.host.remove()
     document.body.classList.remove('ik-annotating')
   }
