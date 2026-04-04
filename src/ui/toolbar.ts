@@ -185,6 +185,7 @@ export class Toolbar {
     this.host.addEventListener('pointerdown', (e) => e.stopPropagation())
 
     this.applyPosition()
+    this.loadSavedPosition()
     const root = document.getElementById('instruckt-root') ?? document.body
     root.appendChild(this.host)
   }
@@ -280,13 +281,34 @@ export class Toolbar {
       if (!this.dragging) return
       Object.assign(this.host.style, {
         left: `${e.clientX - this.dragOffset.x}px`,
-        top: `${e.clientY - this.dragOffset.y}px`,
+        bottom: `${window.innerHeight - (e.clientY - this.dragOffset.y) - this.host.offsetHeight}px`,
+        top: 'auto',
         right: 'auto',
-        bottom: 'auto',
       })
     })
 
-    document.addEventListener('mouseup', () => { this.dragging = false })
+    document.addEventListener('mouseup', () => {
+      if (this.dragging) this.savePosition()
+      this.dragging = false
+    })
+  }
+  
+  private static readonly POSITION_KEY = 'instruckt:toolbar-pos'
+
+  private savePosition(): void {
+    const { left, right, top, bottom } = this.host.style
+    try {
+      localStorage.setItem(Toolbar.POSITION_KEY, JSON.stringify({ left, right, top, bottom }))
+    } catch {}
+  }
+
+  private loadSavedPosition(): void {
+    try {
+      const raw = localStorage.getItem(Toolbar.POSITION_KEY)
+      if (!raw) return
+      const { left, right, top, bottom } = JSON.parse(raw)
+      Object.assign(this.host.style, { left, right, top, bottom })
+    } catch {}
   }
 
   private setMinimized(min: boolean): void {
